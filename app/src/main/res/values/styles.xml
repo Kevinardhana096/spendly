@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="KeypadRow">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:layout_marginBottom">12dp</item>
+        <item name="android:gravity">center</item>
+    </style>
+
+    <style name="KeypadButtonBase" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_width">72dp</item>
+        <item name="android:layout_height">72dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_marginStart">12dp</item>
+        <item name="android:layout_marginEnd">12dp</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="KeypadButton.Outline" parent="KeypadButtonBase">
+        <item name="android:background">@drawable/keypad_button_outline_background</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+    <style name="KeypadButton.Filled" parent="KeypadButtonBase">
+        <item name="android:background">@drawable/keypad_button_filled_background</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <style name="KeypadButton.Placeholder" parent="KeypadButtonBase">
+        <item name="android:background">@drawable/keypad_button_placeholder_background</item>
+    </style>
+</resources>
