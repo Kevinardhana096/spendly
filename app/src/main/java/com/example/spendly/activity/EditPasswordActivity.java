@@ -16,12 +16,10 @@ import androidx.core.view.WindowInsetsCompat;
 import com.example.spendly.R;
 
 public class EditPasswordActivity extends AppCompatActivity {
-
     private ImageView btnBack;
     private EditText etCurrentPassword, etNewPassword, etConfirmPassword;
     private ImageView btnToggleCurrentPassword, btnToggleNewPassword, btnToggleConfirmPassword;
     private Button btnSavePassword;
-
     private boolean isCurrentPasswordVisible = false;
     private boolean isNewPasswordVisible = false;
     private boolean isConfirmPasswordVisible = false;

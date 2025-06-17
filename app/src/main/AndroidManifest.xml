@@ -12,6 +12,35 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Spendly"
         tools:targetApi="31">
+        <!-- SplashActivity set as launcher -->
+        <activity
+            android:name=".activity.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Spendly.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- Onboarding Activity -->
+        <activity
+            android:name=".activity.OnboardingActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Spendly.NoActionBar" />
+        <!-- SignIn Activity -->
+        <activity
+            android:name=".activity.SignInActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Spendly.NoActionBar" />
+        <!-- SignUp Activity -->
+        <activity
+            android:name=".activity.SignUpActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Spendly.NoActionBar" />
+        <activity
+            android:name=".activity.EditPinActivity"
+            android:exported="false" />
         <activity
             android:name=".activity.EditPasswordActivity"
             android:exported="false" />
@@ -20,13 +49,7 @@
             android:exported="false" />
         <activity
             android:name=".activity.MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false" />
     </application>
 
 </manifest>

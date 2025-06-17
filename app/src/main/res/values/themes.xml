@@ -10,4 +10,12 @@
     </style>
 
     <style name="Theme.Spendly" parent="Base.Theme.Spendly"/>
+
+    <!-- Add NoActionBar theme -->
+    <style name="Theme.Spendly.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
 </resources>
