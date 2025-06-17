@@ -6,4 +6,7 @@
     <color name="white">#FFFFFF</color>
     <color name="black">#1F2937</color>
     <color name="nav_item_color">#6B7280</color>
+    <color name="text_gray">#6B7280</color>
+    <color name="input_background">#F3F4F6</color>
+    <color name="input_border">#E5E7EB</color>
 </resources>
