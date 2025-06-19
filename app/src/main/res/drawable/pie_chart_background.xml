@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="280dp"
+    android:viewportWidth="280"
+    android:viewportHeight="280">
+
+    <!-- Outer Circle -->
+    <path
+        android:fillColor="@color/chart_background"
+        android:pathData="M140,140m-140,0a140,140 0,1 1,280 0a140,140 0,1 1,-280 0" />
+
+    <!-- Inner Circle (hole) -->
+    <path
+        android:fillColor="@color/white"
+        android:pathData="M140,140m-80,0a80,80 0,1 1,160 0a80,80 0,1 1,-160 0" />
+
+</vector>

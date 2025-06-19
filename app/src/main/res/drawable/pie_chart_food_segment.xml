@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="280dp"
+    android:viewportWidth="280"
+    android:viewportHeight="280">
+
+    <!-- Food segment (40% = 144 degrees) -->
+    <path
+        android:fillColor="@color/orange_primary"
+        android:pathData="M140,140 L-98.99,98.99 A140,140 0,0,1 140,0 L140,60 A80,80 0,0,0 -56.57,56.57 Z" />
+
+</vector>
