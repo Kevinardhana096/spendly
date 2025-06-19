@@ -196,3 +196,4 @@ public class OnboardingActivity extends AppCompatActivity {
         }
     }
 }
+

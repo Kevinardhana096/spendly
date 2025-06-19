@@ -1,11 +1,15 @@
 package com.example.spendly.activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
+import com.example.spendly.fragment.BudgetFragment;
+import com.example.spendly.fragment.HistoryFragment;
 import com.example.spendly.fragment.HomeFragment;
+import com.example.spendly.fragment.SavingFragment;
 import com.example.spendly.R;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -33,12 +37,13 @@ public class MainActivity extends AppCompatActivity {
             int itemId = item.getItemId();
             if (itemId == R.id.nav_home) {
                 selectedFragment = new HomeFragment();
+            } else if (itemId == R.id.nav_savings) {
+                selectedFragment = new SavingFragment();
+            } else if (itemId == R.id.nav_budgeting) {
+                selectedFragment = new BudgetFragment();
+            } else if (itemId == R.id.nav_history) {
+                selectedFragment = new HistoryFragment();
             }
-//            else if (itemId == R.id.nav_transactions) {
-//                selectedFragment = new TransactionsFragment();
-//            } else if (itemId == R.id.nav_analytics) {
-//                selectedFragment = new AnalyticsFragment();
-//            }
 
             if (selectedFragment != null) {
                 getSupportFragmentManager().beginTransaction()
@@ -49,7 +54,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
         fab.setOnClickListener(v -> {
-            // Handle FAB click - open add transaction dialog/activity
+            // Navigate to AddTransactionActivity
+            Intent intent = new Intent(MainActivity.this, AddTransactionActivity.class);
+            startActivity(intent);
         });
     }
 }

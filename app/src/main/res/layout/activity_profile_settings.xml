@@ -211,40 +211,40 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:layout_marginTop="16dp"
             android:background="@color/white"
-            android:padding="24dp"
-            android:layout_marginTop="16dp">
+            android:orientation="vertical"
+            android:padding="24dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
                 android:text="Security"
-                android:textSize="16sp"
-                android:textStyle="bold"
                 android:textColor="@color/purple_primary"
-                android:layout_marginBottom="20dp" />
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
             <!-- Change Pin Option -->
             <LinearLayout
                 android:id="@+id/layout_change_pin"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/input_field_background"
-                android:padding="16dp"
                 android:layout_marginBottom="12dp"
+                android:background="@drawable/input_field_background"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Change Pin"
-                    android:textSize="14sp"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/black"
+                    android:textSize="14sp" />
 
                 <ImageView
                     android:layout_width="20dp"
@@ -259,20 +259,20 @@
                 android:id="@+id/layout_change_password"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
                 android:background="@drawable/input_field_background"
-                android:padding="16dp"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp">
 
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:text="Change Password"
-                    android:textSize="14sp"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/black"
+                    android:textSize="14sp" />
 
                 <ImageView
                     android:layout_width="20dp"
@@ -284,6 +284,22 @@
 
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:layout_marginTop="16dp">
+            <Button
+                android:id="@+id/btn_logout"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:text="Logout"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:backgroundTint="@color/red_light_background"
+                android:layout_marginBottom="8dp"/>
+        </LinearLayout>
         <!-- Bottom spacing -->
         <View
             android:layout_width="match_parent"

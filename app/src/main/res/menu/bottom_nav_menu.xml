@@ -6,14 +6,14 @@
         android:title="Home" />
 
     <item
-        android:id="@+id/nav_transactions"
-        android:icon="@drawable/ic_transaction"
-        android:title="Transactions" />
+        android:id="@+id/nav_savings"
+        android:icon="@drawable/ic_savings"
+        android:title="Savings" />
 
     <item
-        android:id="@+id/nav_analytics"
-        android:icon="@drawable/ic_analytics"
-        android:title="Analytics" />
+        android:id="@+id/nav_budgeting"
+        android:icon="@drawable/ic_budgeting"
+        android:title="Budgeting" />
 
     <item
         android:id="@+id/nav_history"

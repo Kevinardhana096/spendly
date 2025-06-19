@@ -1,10 +1,12 @@
 package com.example.spendly.fragment;
 
+import android.content.Intent;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.cardview.widget.CardView;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.spendly.R;
+import com.example.spendly.activity.ProfileSettingsActivity;
 import com.example.spendly.model.User;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -26,6 +29,7 @@ public class HomeFragment extends Fragment {
 
     private TextView tvGreeting;
     private TextView tvBalance;
+    private CardView cardProfile;
 
     // Firebase components
     private FirebaseAuth mAuth;
@@ -50,6 +54,13 @@ public class HomeFragment extends Fragment {
         // Initialize views
         tvGreeting = view.findViewById(R.id.tv_greeting);
         tvBalance = view.findViewById(R.id.tv_balance);
+        cardProfile = view.findViewById(R.id.card_profile);
+
+        // Set click listener for profile card
+        cardProfile.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), ProfileSettingsActivity.class);
+            startActivity(intent);
+        });
 
         // Load user data
         loadUserData();
