@@ -288,8 +288,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp"
-            android:layout_marginTop="16dp">
+            android:padding="10dp">
             <Button
                 android:id="@+id/btn_logout"
                 android:layout_width="match_parent"
@@ -300,11 +299,6 @@
                 android:backgroundTint="@color/red_light_background"
                 android:layout_marginBottom="8dp"/>
         </LinearLayout>
-        <!-- Bottom spacing -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="24dp" />
-
     </LinearLayout>
 
 </ScrollView>
