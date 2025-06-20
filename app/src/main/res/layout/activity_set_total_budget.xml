@@ -199,69 +199,21 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Budget Recommendation (Optional) -->
-            <LinearLayout
-                android:id="@+id/budget_recommendation"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="@drawable/recommendation_background"
-                android:padding="16dp"
-                android:layout_marginBottom="32dp"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="8dp">
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:src="@drawable/ic_lightbulb"
-                        android:layout_marginEnd="8dp"
-                        app:tint="@color/orange_primary" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Budget Recommendation"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black" />
-
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tv_recommendation"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Based on your income, we recommend setting your budget to 70% of your income (Rp3.500.000)"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_gray"
-                    android:lineSpacingExtra="2dp" />
-
-                <TextView
-                    android:id="@+id/btn_use_recommendation"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Use this recommendation"
-                    android:textSize="12sp"
-                    android:textColor="@color/purple_primary"
-                    android:textStyle="bold"
-                    android:layout_marginTop="8dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:padding="4dp"
-                    android:clickable="true"
-                    android:focusable="true" />
-
-            </LinearLayout>
-
         </LinearLayout>
 
     </ScrollView>
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Next Button (Fixed at bottom) -->
     <Button

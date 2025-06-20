@@ -8,34 +8,43 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.example.spendly.R;
+import com.example.spendly.repository.BudgetRepository;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SetTotalBudgetActivity extends AppCompatActivity {
 
     private ImageView btnBack;
     private EditText etIncome, etBudget;
-    private LinearLayout budgetRecommendation;
-    private TextView tvRecommendation, btnUseRecommendation;
     private Button btnNext;
+    private ProgressBar progressBar;
 
     private double monthlyIncome = 0.0;
     private double monthlyBudget = 0.0;
-    private double recommendedBudget = 0.0;
+
+    private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
+    private BudgetRepository budgetRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_set_total_budget);
+
+        mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
+        budgetRepository = BudgetRepository.getInstance(this);
 
         initViews();
         setupClickListeners();
@@ -46,16 +55,12 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
         btnBack = findViewById(R.id.btn_back);
         etIncome = findViewById(R.id.et_income);
         etBudget = findViewById(R.id.et_budget);
-        budgetRecommendation = findViewById(R.id.budget_recommendation);
-        tvRecommendation = findViewById(R.id.tv_recommendation);
-        btnUseRecommendation = findViewById(R.id.btn_use_recommendation);
         btnNext = findViewById(R.id.btn_next);
+        progressBar = findViewById(R.id.progress_bar);
     }
 
     private void setupClickListeners() {
         btnBack.setOnClickListener(v -> finish());
-
-        btnUseRecommendation.setOnClickListener(v -> useRecommendation());
 
         btnNext.setOnClickListener(v -> proceedToNext());
     }
@@ -67,7 +72,7 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                updateIncomeAndRecommendation();
+                updateIncomeAndButton();
             }
 
             @Override
@@ -88,24 +93,17 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
         });
     }
 
-    private void updateIncomeAndRecommendation() {
+    private void updateIncomeAndButton() {
         String incomeText = etIncome.getText().toString().trim();
 
         if (!incomeText.isEmpty()) {
             try {
                 monthlyIncome = Double.parseDouble(incomeText.replace(",", "").replace(".", ""));
-
-                // Calculate recommended budget (70% of income)
-                recommendedBudget = monthlyIncome * 0.7;
-
-                // Show recommendation
-                showBudgetRecommendation();
-
             } catch (NumberFormatException e) {
-                hideBudgetRecommendation();
+                monthlyIncome = 0.0;
             }
         } else {
-            hideBudgetRecommendation();
+            monthlyIncome = 0.0;
         }
 
         updateNextButton();
@@ -125,25 +123,6 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
         }
 
         updateNextButton();
-    }
-
-    private void showBudgetRecommendation() {
-        budgetRecommendation.setVisibility(View.VISIBLE);
-
-        String formattedRecommendation = formatNumber((int) recommendedBudget);
-        tvRecommendation.setText("Based on your income, we recommend setting your budget to 70% of your income (Rp" + formattedRecommendation + ")");
-    }
-
-    private void hideBudgetRecommendation() {
-        budgetRecommendation.setVisibility(View.GONE);
-    }
-
-    private void useRecommendation() {
-        etBudget.setText(String.valueOf((int) recommendedBudget));
-        monthlyBudget = recommendedBudget;
-        updateNextButton();
-
-        Toast.makeText(this, "Recommendation applied", Toast.LENGTH_SHORT).show();
     }
 
     private void updateNextButton() {
@@ -191,28 +170,64 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
     }
 
     private void saveBudgetData() {
-        // Save to SharedPreferences or database
-        getSharedPreferences("budget_prefs", MODE_PRIVATE)
-                .edit()
-                .putFloat("monthly_income", (float) monthlyIncome)
-                .putFloat("monthly_budget", (float) monthlyBudget)
-                .putString("setup_date", getCurrentDate())
-                .putBoolean("budget_setup_completed", true)
-                .apply();
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(this, "You need to be logged in to set a budget", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        // Create result intent
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("monthly_income", monthlyIncome);
-        resultIntent.putExtra("monthly_budget", monthlyBudget);
-        resultIntent.putExtra("income_formatted", formatNumber((int) monthlyIncome));
-        resultIntent.putExtra("budget_formatted", formatNumber((int) monthlyBudget));
+        // Show loading indicator
+        progressBar.setVisibility(View.VISIBLE);
+        btnNext.setEnabled(false);
 
-        setResult(RESULT_OK, resultIntent);
+        // Create budget data
+        Map<String, Object> budgetData = new HashMap<>();
+        budgetData.put("monthly_income", monthlyIncome);
+        budgetData.put("monthly_budget", monthlyBudget);
+        budgetData.put("remaining_budget", monthlyBudget); // Initially all budget is remaining
+        budgetData.put("income_formatted", formatNumber((int) monthlyIncome));
+        budgetData.put("budget_formatted", formatNumber((int) monthlyBudget));
+        budgetData.put("remaining_formatted", formatNumber((int) monthlyBudget));
+        budgetData.put("setup_date", getCurrentDate());
+        budgetData.put("last_updated", new Date().toString());
 
-        Toast.makeText(this, "Budget setup completed successfully", Toast.LENGTH_SHORT).show();
+        // Save to both Firebase and SQLite using repository
+        budgetRepository.saveTotalBudget(budgetData, new BudgetRepository.BudgetCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+                progressBar.setVisibility(View.GONE);
 
-        // Navigate to main budget screen or dashboard
-        finish();
+                // Check if data was saved offline-only
+                boolean isOfflineOnly = data.containsKey("offline_only") && (boolean) data.get("offline_only");
+                if (isOfflineOnly) {
+                    Toast.makeText(SetTotalBudgetActivity.this,
+                            "Budget saved locally. Will sync when connection is available.",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(SetTotalBudgetActivity.this,
+                            "Total budget set successfully",
+                            Toast.LENGTH_SHORT).show();
+                }
+
+                // Navigate to SetBudgetActivity to set budget categories
+                Intent intent = new Intent(SetTotalBudgetActivity.this, SetBudgetActivity.class);
+                intent.putExtra("monthly_budget", monthlyBudget);
+                intent.putExtra("remaining_budget", monthlyBudget);
+                startActivity(intent);
+
+                // Finish this activity
+                finish();
+            }
+
+            @Override
+            public void onError(Exception e) {
+                progressBar.setVisibility(View.GONE);
+                btnNext.setEnabled(true);
+                Toast.makeText(SetTotalBudgetActivity.this,
+                        "Failed to save budget: " + e.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private String getCurrentDate() {
@@ -222,19 +237,5 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
 
     private String formatNumber(int number) {
         return String.format("%,d", number).replace(",", ".");
-    }
-
-    public static class TotalBudgetData {
-        public double monthlyIncome;
-        public double monthlyBudget;
-        public String incomeFormatted;
-        public String budgetFormatted;
-
-        public TotalBudgetData(double monthlyIncome, double monthlyBudget, String incomeFormatted, String budgetFormatted) {
-            this.monthlyIncome = monthlyIncome;
-            this.monthlyBudget = monthlyBudget;
-            this.incomeFormatted = incomeFormatted;
-            this.budgetFormatted = budgetFormatted;
-        }
     }
 }

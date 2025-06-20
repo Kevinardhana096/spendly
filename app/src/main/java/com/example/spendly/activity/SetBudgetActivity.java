@@ -4,23 +4,29 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.example.spendly.R;
+import com.example.spendly.repository.BudgetRepository;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SetBudgetActivity extends AppCompatActivity {
 
@@ -30,15 +36,36 @@ public class SetBudgetActivity extends AppCompatActivity {
     private EditText etTotalBudget;
     private TextView tvRemainingBudget;
     private Button btnAddBudget;
+    private ProgressBar progressBar;
 
     private String selectedCategory = "Food & Beverages";
     private double totalBudget = 0.0;
-    private double existingBudget = 500000.0; // Example existing budget
+    private double remainingBudget = 0.0; // From total monthly budget
+    private double monthlyBudget = 0.0;   // Total monthly budget
+
+    private FirebaseAuth mAuth;
+    private FirebaseFirestore db;
+    private BudgetRepository budgetRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_set_budget);
+
+        mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
+        budgetRepository = BudgetRepository.getInstance(this);
+
+        // Get data from intent
+        if (getIntent().hasExtra("monthly_budget")) {
+            monthlyBudget = getIntent().getDoubleExtra("monthly_budget", 0.0);
+        }
+
+        if (getIntent().hasExtra("remaining_budget")) {
+            remainingBudget = getIntent().getDoubleExtra("remaining_budget", 0.0);
+        } else {
+            remainingBudget = monthlyBudget;
+        }
 
         initViews();
         setupSpinner();
@@ -57,6 +84,7 @@ public class SetBudgetActivity extends AppCompatActivity {
         etTotalBudget = findViewById(R.id.et_total_budget);
         tvRemainingBudget = findViewById(R.id.tv_remaining_budget);
         btnAddBudget = findViewById(R.id.btn_add_budget);
+        progressBar = findViewById(R.id.progress_bar);
     }
 
     private void setupSpinner() {
@@ -133,7 +161,7 @@ public class SetBudgetActivity extends AppCompatActivity {
         if (!budgetText.isEmpty()) {
             try {
                 double enteredBudget = Double.parseDouble(budgetText.replace(",", "").replace(".", ""));
-                double remaining = existingBudget - enteredBudget;
+                double remaining = remainingBudget - enteredBudget;
 
                 if (remaining >= 0) {
                     tvRemainingBudget.setText("Rp" + formatNumber((int) remaining));
@@ -143,11 +171,11 @@ public class SetBudgetActivity extends AppCompatActivity {
                     tvRemainingBudget.setTextColor(getResources().getColor(R.color.red_primary));
                 }
             } catch (NumberFormatException e) {
-                tvRemainingBudget.setText("Rp" + formatNumber((int) existingBudget));
+                tvRemainingBudget.setText("Rp" + formatNumber((int) remainingBudget));
                 tvRemainingBudget.setTextColor(getResources().getColor(R.color.black));
             }
         } else {
-            tvRemainingBudget.setText("Rp" + formatNumber((int) existingBudget));
+            tvRemainingBudget.setText("Rp" + formatNumber((int) remainingBudget));
             tvRemainingBudget.setTextColor(getResources().getColor(R.color.black));
         }
     }
@@ -192,37 +220,125 @@ public class SetBudgetActivity extends AppCompatActivity {
             return;
         }
 
+        // Validate if entered budget doesn't exceed remaining budget
+        if (totalBudget > remainingBudget) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Budget Exceeded");
+            builder.setMessage("The budget amount exceeds your remaining monthly budget. Do you want to adjust your total monthly budget?");
+
+            builder.setPositiveButton("Yes, Adjust", (dialog, which) -> {
+                // Navigate back to SetTotalBudgetActivity
+                Intent intent = new Intent(this, SetTotalBudgetActivity.class);
+                startActivity(intent);
+                finish();
+            });
+
+            builder.setNegativeButton("No, I'll Change This", (dialog, which) -> dialog.dismiss());
+
+            builder.show();
+            return;
+        }
+
         // Get selected category from spinner
-        String spinnerCategory = this.spinnerCategory.getSelectedItem().toString();
+        String category = spinnerCategory.getSelectedItem().toString();
 
-        // Save budget to database/shared preferences
-        // For now, just show success message
+        // Save to Firebase and SQLite
+        saveToRepository(category, totalBudget);
+    }
 
-        // Create result intent
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("category", spinnerCategory);
-        resultIntent.putExtra("budget_amount", totalBudget);
-        resultIntent.putExtra("budget_formatted", formatNumber((int) totalBudget));
+    private void saveToRepository(String category, double amount) {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(this, "You need to be logged in to set a budget", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        setResult(RESULT_OK, resultIntent);
+        // Show loading indicator
+        progressBar.setVisibility(View.VISIBLE);
+        btnAddBudget.setEnabled(false);
 
-        Toast.makeText(this, "Budget set for " + spinnerCategory + ": Rp" + formatNumber((int) totalBudget), Toast.LENGTH_SHORT).show();
-        finish();
+        String formattedAmount = formatNumber((int) amount);
+
+        // Create category budget data
+        Map<String, Object> categoryData = new HashMap<>();
+        categoryData.put("amount", amount);
+        categoryData.put("formatted_amount", formattedAmount);
+        categoryData.put("spent", 0.0);
+        categoryData.put("formatted_spent", "0");
+        categoryData.put("date_added", new Date().toString());
+
+        // Save using repository pattern
+        budgetRepository.saveBudgetCategory(category, categoryData, new BudgetRepository.BudgetCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> data) {
+                // Also update the remaining budget
+                updateRemainingBudgetInRepository(remainingBudget - amount);
+            }
+
+            @Override
+            public void onError(Exception e) {
+                progressBar.setVisibility(View.GONE);
+                btnAddBudget.setEnabled(true);
+                Toast.makeText(SetBudgetActivity.this,
+                        "Failed to save category: " + e.getMessage(),
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void updateRemainingBudgetInRepository(final double newRemainingBudget) {
+        String formattedRemaining = formatNumber((int) newRemainingBudget);
+
+        budgetRepository.updateRemainingBudget(newRemainingBudget, formattedRemaining,
+                new BudgetRepository.BudgetCallback() {
+                    @Override
+                    public void onSuccess(Map<String, Object> data) {
+                        progressBar.setVisibility(View.GONE);
+
+                        // Check if data was saved offline-only
+                        boolean isOfflineOnly = data.containsKey("offline_only") && (boolean) data.get("offline_only");
+                        if (isOfflineOnly) {
+                            Toast.makeText(SetBudgetActivity.this,
+                                    "Budget saved locally. Will sync when connection is available.",
+                                    Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(SetBudgetActivity.this,
+                                    "Budget category added successfully",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+
+                        remainingBudget = newRemainingBudget;
+                        checkBudgetCompletion();
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        progressBar.setVisibility(View.GONE);
+                        btnAddBudget.setEnabled(true);
+                        Toast.makeText(SetBudgetActivity.this,
+                                "Failed to update remaining budget: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void checkBudgetCompletion() {
+        // Mark budget setup as complete using the repository
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser != null) {
+            String userId = currentUser.getUid();
+            db.collection("users").document(userId)
+                    .update("budget_setup_completed", true)
+                    .addOnCompleteListener(task -> {
+                        // Finish this activity and return to the BudgetFragment
+                        finish();
+                    });
+        } else {
+            finish();
+        }
     }
 
     private String formatNumber(int number) {
         return String.format("%,d", number).replace(",", ".");
-    }
-
-    public static class BudgetData {
-        public String category;
-        public double amount;
-        public String formattedAmount;
-
-        public BudgetData(String category, double amount, String formattedAmount) {
-            this.category = category;
-            this.amount = amount;
-            this.formattedAmount = formattedAmount;
-        }
     }
 }
