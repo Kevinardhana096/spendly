@@ -1,13 +1,11 @@
 package com.example.spendly.repository;
 
 import android.content.Context;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 
 import com.example.spendly.model.Transaction;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -17,23 +15,17 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class TransactionRepository {
     private static final String TAG = "TransactionRepository";
     private static TransactionRepository instance;
     private final FirebaseFirestore db;
-    private final FirebaseAuth auth;
+    private final Context context;
 
-    // For background operations
-    private final ExecutorService executor;
-    private final Handler mainHandler = new Handler(Looper.getMainLooper());
-
+    // Singleton pattern
     private TransactionRepository(Context context) {
+        this.context = context.getApplicationContext();
         db = FirebaseFirestore.getInstance();
-        auth = FirebaseAuth.getInstance();
-        executor = Executors.newFixedThreadPool(2);
     }
 
     public static synchronized TransactionRepository getInstance(Context context) {
@@ -43,264 +35,308 @@ public class TransactionRepository {
         return instance;
     }
 
-    // Interface for callbacks
+    /**
+     * Interface for transaction operation callbacks
+     */
     public interface TransactionCallback {
         void onSuccess(Map<String, Object> data);
         void onError(Exception e);
     }
 
     /**
-     * Saves a new transaction and updates budget data
+     * Save a transaction to Firestore
      */
     public void saveTransaction(Transaction transaction, final TransactionCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
+        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
+            callback.onError(new Exception("User not authenticated"));
             return;
         }
 
-        transaction.setUserId(currentUser.getUid());
+        // Convert transaction to Map for Firestore
+        Map<String, Object> transactionData = new HashMap<>();
+        transactionData.put("userId", transaction.getUserId());
+        transactionData.put("amount", transaction.getAmount());
+        transactionData.put("category", transaction.getCategory());
+        transactionData.put("account", transaction.getAccount());
+        transactionData.put("date", transaction.getDate());
+        transactionData.put("type", transaction.getType());
+        transactionData.put("formattedAmount", transaction.getFormattedAmount());
 
-        // Save to Firestore
-        db.collection("users").document(currentUser.getUid())
-                .collection("transactions")
-                .add(transaction)
+        // Add transaction to Firestore
+        db.collection("transactions")
+                .add(transactionData)
                 .addOnSuccessListener(documentReference -> {
-                    // Set the ID from Firestore
-                    String id = documentReference.getId();
-                    transaction.setId(id);
-
-                    // Update the document with its ID
-                    documentReference.update("id", id)
-                            .addOnSuccessListener(aVoid -> {
-                                Map<String, Object> result = new HashMap<>();
-                                result.put("transaction", transaction);
-                                result.put("success", true);
-                                callback.onSuccess(result);
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error updating transaction ID: " + e.getMessage());
-                                // Still consider it a success since the transaction was saved
-                                Map<String, Object> result = new HashMap<>();
-                                result.put("transaction", transaction);
-                                result.put("success", true);
-                                callback.onSuccess(result);
-                            });
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("id", documentReference.getId());
+                    callback.onSuccess(result);
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error saving transaction: " + e.getMessage());
+                    Log.e(TAG, "Error saving transaction", e);
                     callback.onError(e);
                 });
     }
 
     /**
-     * Gets recent transactions for the current user
+     * Get all transactions for the current user
+     * Note: This requires a compound index on userId and date
      */
-    public void getRecentTransactions(int limit, final TransactionCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
+    public void getUserTransactions(final TransactionCallback callback) {
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId == null) {
+            callback.onError(new Exception("User not authenticated"));
             return;
         }
 
-        db.collection("users").document(currentUser.getUid())
-                .collection("transactions")
-                .orderBy("date", Query.Direction.DESCENDING)
-                .limit(limit)
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        List<Transaction> transactions = new ArrayList<>();
-                        for (QueryDocumentSnapshot document : task.getResult()) {
-                            Transaction transaction = document.toObject(Transaction.class);
-                            transactions.add(transaction);
-                        }
+        try {
+            // Use a simple query first to avoid index issues
+            db.collection("transactions")
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            List<Transaction> transactions = new ArrayList<>();
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Transaction transaction = documentSnapshotToTransaction(document);
+                                if (transaction != null) {
+                                    transactions.add(transaction);
+                                }
+                            }
 
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("transactions", transactions);
-                        callback.onSuccess(result);
-                    } else {
-                        callback.onError(task.getException());
-                    }
-                });
+                            // Sort transactions by date (most recent first) in memory
+                            transactions.sort((t1, t2) -> t2.getDate().compareTo(t1.getDate()));
+
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("transactions", transactions);
+                            callback.onSuccess(result);
+                        } else {
+                            Log.e(TAG, "Error getting transactions", task.getException());
+                            callback.onError(task.getException());
+                        }
+                    });
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in getUserTransactions", e);
+            callback.onError(e);
+        }
     }
 
     /**
-     * Gets transactions for the current month
+     * Update budget for a given transaction
+     */
+    public void updateBudgetForTransaction(Transaction transaction, BudgetRepository budgetRepository,
+                                           final TransactionCallback callback) {
+        if ("expense".equals(transaction.getType())) {
+            // First update category spent
+            budgetRepository.updateCategorySpent(
+                transaction.getCategory(),
+                transaction.getAmount(),
+                new BudgetRepository.BudgetCallback() {
+                    @Override
+                    public void onSuccess(Map<String, Object> data) {
+                        // Now also update the total remaining budget for expenses
+                        budgetRepository.getTotalBudget(new BudgetRepository.BudgetCallback() {
+                            @Override
+                            public void onSuccess(Map<String, Object> totalBudgetData) {
+                                // Extract current remaining budget
+                                double currentRemainingBudget = 0.0;
+                                if (totalBudgetData.containsKey("remaining_budget")) {
+                                    if (totalBudgetData.get("remaining_budget") instanceof Double) {
+                                        currentRemainingBudget = (Double) totalBudgetData.get("remaining_budget");
+                                    } else if (totalBudgetData.get("remaining_budget") instanceof Long) {
+                                        currentRemainingBudget = ((Long) totalBudgetData.get("remaining_budget")).doubleValue();
+                                    }
+                                }
+
+                                // Calculate new remaining budget
+                                double newRemainingBudget = currentRemainingBudget - transaction.getAmount();
+
+                                // Format for display
+                                java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
+                                String formattedRemaining = formatter.format(newRemainingBudget)
+                                        .replace("Rp", "")
+                                        .trim();
+
+                                // Update the remaining budget
+                                budgetRepository.updateRemainingBudget(
+                                    newRemainingBudget,
+                                    formattedRemaining,
+                                    new BudgetRepository.BudgetCallback() {
+                                        @Override
+                                        public void onSuccess(Map<String, Object> data) {
+                                            callback.onSuccess(new HashMap<>());
+                                        }
+
+                                        @Override
+                                        public void onError(Exception e) {
+                                            Log.e(TAG, "Error updating remaining budget: " + e.getMessage());
+                                            // Still return success since the category was updated
+                                            callback.onSuccess(new HashMap<>());
+                                        }
+                                    });
+                            }
+
+                            @Override
+                            public void onError(Exception e) {
+                                Log.e(TAG, "Error getting total budget: " + e.getMessage());
+                                // Still return success since the category was updated
+                                callback.onSuccess(new HashMap<>());
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        callback.onError(e);
+                    }
+                }
+            );
+        } else {
+            // For income transactions, no budget update needed
+            callback.onSuccess(new HashMap<>());
+        }
+    }
+
+    /**
+     * Get transactions within a date range
+     */
+    public void getTransactionsByDateRange(long startDate, long endDate, final TransactionCallback callback) {
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId == null) {
+            callback.onError(new Exception("User not authenticated"));
+            return;
+        }
+
+        try {
+            // Use a simple query with in-memory filtering to avoid index requirements
+            db.collection("transactions")
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            List<Transaction> transactions = new ArrayList<>();
+                            Date startDateObj = new Date(startDate);
+                            Date endDateObj = new Date(endDate);
+
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Transaction transaction = documentSnapshotToTransaction(document);
+                                if (transaction != null) {
+                                    // Filter by date range in memory
+                                    Date transDate = transaction.getDate();
+                                    if (transDate != null &&
+                                        transDate.compareTo(startDateObj) >= 0 &&
+                                        transDate.compareTo(endDateObj) <= 0) {
+                                        transactions.add(transaction);
+                                    }
+                                }
+                            }
+
+                            // Sort by date in memory
+                            transactions.sort((t1, t2) -> t2.getDate().compareTo(t1.getDate()));
+
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("transactions", transactions);
+                            callback.onSuccess(result);
+                        } else {
+                            Log.e(TAG, "Error getting transactions by date range", task.getException());
+                            callback.onError(task.getException());
+                        }
+                    });
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in getTransactionsByDateRange", e);
+            callback.onError(e);
+        }
+    }
+
+    /**
+     * Get transactions for a specific month
      */
     public void getMonthlyTransactions(Date startDate, Date endDate, final TransactionCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId == null) {
+            callback.onError(new Exception("User not authenticated"));
             return;
         }
 
-        db.collection("users").document(currentUser.getUid())
-                .collection("transactions")
-                .whereGreaterThanOrEqualTo("date", startDate)
-                .whereLessThanOrEqualTo("date", endDate)
-                .orderBy("date", Query.Direction.DESCENDING)
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        List<Transaction> transactions = new ArrayList<>();
-                        for (QueryDocumentSnapshot document : task.getResult()) {
-                            Transaction transaction = document.toObject(Transaction.class);
-                            transactions.add(transaction);
-                        }
+        try {
+            // Use a simple query with in-memory filtering to avoid index requirements
+            db.collection("transactions")
+                    .whereEqualTo("userId", userId)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            List<Transaction> transactions = new ArrayList<>();
 
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("transactions", transactions);
-                        callback.onSuccess(result);
-                    } else {
-                        callback.onError(task.getException());
-                    }
+                            for (QueryDocumentSnapshot document : task.getResult()) {
+                                Transaction transaction = documentSnapshotToTransaction(document);
+                                if (transaction != null) {
+                                    // Filter by date range in memory
+                                    Date transDate = transaction.getDate();
+                                    if (transDate != null &&
+                                        transDate.compareTo(startDate) >= 0 &&
+                                        transDate.compareTo(endDate) <= 0) {
+                                        transactions.add(transaction);
+                                    }
+                                }
+                            }
+
+                            // Sort by date in memory
+                            transactions.sort((t1, t2) -> t2.getDate().compareTo(t1.getDate()));
+
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("transactions", transactions);
+                            callback.onSuccess(result);
+                        } else {
+                            Log.e(TAG, "Error getting monthly transactions", task.getException());
+                            callback.onError(task.getException());
+                        }
+                    });
+        } catch (Exception e) {
+            Log.e(TAG, "Exception in getMonthlyTransactions", e);
+            callback.onError(e);
+        }
+    }
+
+    /**
+     * Delete a transaction
+     */
+    public void deleteTransaction(String transactionId, final TransactionCallback callback) {
+        db.collection("transactions")
+                .document(transactionId)
+                .delete()
+                .addOnSuccessListener(aVoid -> {
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("success", true);
+                    callback.onSuccess(result);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error deleting transaction", e);
+                    callback.onError(e);
                 });
     }
 
     /**
-     * Updates budget data based on a transaction
+     * Convert a Firestore document to a Transaction object
      */
-    public void updateBudgetForTransaction(Transaction transaction,
-                                          BudgetRepository budgetRepository,
-                                          final TransactionCallback callback) {
-        if (transaction == null || budgetRepository == null) {
-            callback.onError(new Exception("Invalid transaction or budget repository"));
-            return;
-        }
+    private Transaction documentSnapshotToTransaction(DocumentSnapshot document) {
+        try {
+            String userId = document.getString("userId");
+            double amount = document.getDouble("amount") != null ? document.getDouble("amount") : 0.0;
+            String category = document.getString("category");
+            String account = document.getString("account");
+            java.util.Date date = document.getDate("date");
+            String type = document.getString("type");
+            String formattedAmount = document.getString("formattedAmount");
 
-        // Only update budget for expense transactions
-        if (!"expense".equalsIgnoreCase(transaction.getType())) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "Not an expense - no budget update needed");
-            callback.onSuccess(result);
-            return;
-        }
+            Transaction transaction = new Transaction(userId, amount, category, account, date, type);
+            transaction.setId(document.getId());
 
-        // Get current budget data
-        budgetRepository.getTotalBudget(new BudgetRepository.BudgetCallback() {
-            @Override
-            public void onSuccess(Map<String, Object> data) {
-                // Calculate new remaining budget
-                double remainingBudget = 0;
-                if (data.containsKey("remaining_budget")) {
-                    if (data.get("remaining_budget") instanceof Double) {
-                        remainingBudget = (Double) data.get("remaining_budget");
-                    } else if (data.get("remaining_budget") instanceof Long) {
-                        remainingBudget = ((Long) data.get("remaining_budget")).doubleValue();
-                    }
-                }
-
-                // Subtract transaction amount from remaining budget
-                double newRemainingBudget = remainingBudget - transaction.getAmount();
-
-                // Format the new remaining budget
-                String formattedRemaining = formatNumber((int) newRemainingBudget);
-
-                // Update the budget
-                budgetRepository.updateRemainingBudget(newRemainingBudget, formattedRemaining,
-                        new BudgetRepository.BudgetCallback() {
-                            @Override
-                            public void onSuccess(Map<String, Object> data) {
-                                // Now update the category budget if we have category data
-                                updateCategoryBudget(transaction, budgetRepository, callback);
-                            }
-
-                            @Override
-                            public void onError(Exception e) {
-                                callback.onError(e);
-                            }
-                        });
+            if (formattedAmount != null) {
+                transaction.setFormattedAmount(formattedAmount);
             }
 
-            @Override
-            public void onError(Exception e) {
-                callback.onError(e);
-            }
-        });
-    }
-
-    private void updateCategoryBudget(Transaction transaction,
-                                     BudgetRepository budgetRepository,
-                                     final TransactionCallback callback) {
-        // Skip if no category
-        if (transaction.getCategory() == null || transaction.getCategory().isEmpty()) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("message", "Budget updated, no category specified");
-            callback.onSuccess(result);
-            return;
-        }
-
-        // Get budget categories
-        budgetRepository.getBudgetCategories(new BudgetRepository.BudgetCallback() {
-            @Override
-            public void onSuccess(Map<String, Object> categoriesData) {
-                String category = transaction.getCategory();
-
-                // Check if this category exists in the budget
-                if (!categoriesData.containsKey(category)) {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("message", "Total budget updated, category not found in budget");
-                    callback.onSuccess(result);
-                    return;
-                }
-
-                // Get category data
-                @SuppressWarnings("unchecked")
-                Map<String, Object> categoryData = (Map<String, Object>) categoriesData.get(category);
-
-                // Calculate new spent amount for this category
-                double spent = 0;
-                if (categoryData.containsKey("spent")) {
-                    if (categoryData.get("spent") instanceof Double) {
-                        spent = (Double) categoryData.get("spent");
-                    } else if (categoryData.get("spent") instanceof Long) {
-                        spent = ((Long) categoryData.get("spent")).doubleValue();
-                    }
-                }
-
-                double newSpent = spent + transaction.getAmount();
-                String formattedSpent = formatNumber((int) newSpent);
-
-                // Update category data
-                categoryData.put("spent", newSpent);
-                categoryData.put("formatted_spent", formattedSpent);
-
-                // Save updated category
-                budgetRepository.saveBudgetCategory(category, categoryData,
-                        new BudgetRepository.BudgetCallback() {
-                            @Override
-                            public void onSuccess(Map<String, Object> data) {
-                                Map<String, Object> result = new HashMap<>();
-                                result.put("message", "Budget and category updated successfully");
-                                callback.onSuccess(result);
-                            }
-
-                            @Override
-                            public void onError(Exception e) {
-                                callback.onError(e);
-                            }
-                        });
-            }
-
-            @Override
-            public void onError(Exception e) {
-                // If error getting categories, consider the operation successful anyway
-                // since we already updated the total budget
-                Map<String, Object> result = new HashMap<>();
-                result.put("message", "Total budget updated, but failed to update category");
-                callback.onSuccess(result);
-            }
-        });
-    }
-
-    private String formatNumber(int number) {
-        return String.format(java.util.Locale.getDefault(), "%,d", number).replace(",", ".");
-    }
-
-    public void shutdown() {
-        if (executor != null && !executor.isShutdown()) {
-            executor.shutdown();
+            return transaction;
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting document to transaction", e);
+            return null;
         }
     }
 }

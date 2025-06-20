@@ -681,5 +681,195 @@ public class BudgetRepository {
             executor.shutdown();
         }
     }
-}
 
+    /**
+     * Updates the 'spent' amount for a specific budget category
+     * This method is called when a new expense transaction is added
+     */
+    public void updateCategorySpent(String category, double amount, final BudgetCallback callback) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser == null) {
+            callback.onError(new Exception("User not logged in"));
+            return;
+        }
+
+        final String userId = currentUser.getUid();
+
+        // Clear cached categories data
+        categoriesCache.remove(getCacheKey(userId, CATEGORIES_KEY));
+
+        // First, get the current category data
+        db.collection("users").document(userId)
+                .collection("budget").document("categories")
+                .get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        DocumentSnapshot document = task.getResult();
+                        if (document != null && document.exists() && document.getData() != null) {
+                            Map<String, Object> categories = document.getData();
+
+                            // Check if the category exists
+                            if (categories.containsKey(category)) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> categoryData = (Map<String, Object>) categories.get(category);
+
+                                // Calculate the new spent amount
+                                double currentSpent = 0;
+                                if (categoryData.containsKey("spent")) {
+                                    if (categoryData.get("spent") instanceof Double) {
+                                        currentSpent = (Double) categoryData.get("spent");
+                                    } else if (categoryData.get("spent") instanceof Long) {
+                                        currentSpent = ((Long) categoryData.get("spent")).doubleValue();
+                                    }
+                                }
+
+                                double newSpent = currentSpent + amount;
+                                categoryData.put("spent", newSpent);
+
+                                // Format the spent amount for display
+                                java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
+                                String formattedSpent = formatter.format(newSpent)
+                                        .replace("Rp", "")
+                                        .trim();
+                                categoryData.put("formatted_spent", formattedSpent);
+
+                                // Update the category in the map
+                                categories.put(category, categoryData);
+
+                                // Update the document in Firestore
+                                db.collection("users").document(userId)
+                                        .collection("budget").document("categories")
+                                        .set(categories)
+                                        .addOnSuccessListener(aVoid -> {
+                                            // Also update in local database
+                                            executor.execute(() -> {
+                                                try {
+                                                    dbHelper.saveBudgetCategories(userId, categories);
+
+                                                    // Update cache
+                                                    categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
+
+                                                    // Return success
+                                                    Map<String, Object> result = new HashMap<>();
+                                                    result.put("category", category);
+                                                    result.put("spent", newSpent);
+                                                    result.put("formatted_spent", formattedSpent);
+
+                                                    mainHandler.post(() -> callback.onSuccess(result));
+                                                } catch (Exception e) {
+                                                    mainHandler.post(() -> callback.onError(e));
+                                                }
+                                            });
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            // Try to save to SQLite anyway for offline access
+                                            executor.execute(() -> {
+                                                try {
+                                                    dbHelper.saveBudgetCategories(userId, categories);
+
+                                                    Map<String, Object> result = new HashMap<>();
+                                                    result.put("category", category);
+                                                    result.put("spent", newSpent);
+                                                    result.put("formatted_spent", formattedSpent);
+                                                    result.put("offline_only", true);
+
+                                                    mainHandler.post(() -> callback.onSuccess(result));
+                                                } catch (Exception ex) {
+                                                    mainHandler.post(() -> callback.onError(ex));
+                                                }
+                                            });
+                                        });
+                            } else {
+                                // Category doesn't exist yet, create it with initial spent amount
+                                Map<String, Object> newCategoryData = new HashMap<>();
+                                newCategoryData.put("amount", 0.0);
+                                newCategoryData.put("spent", amount);
+                                newCategoryData.put("formatted_amount", "0");
+
+                                // Format the spent amount
+                                java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
+                                String formattedSpent = formatter.format(amount)
+                                        .replace("Rp", "")
+                                        .trim();
+                                newCategoryData.put("formatted_spent", formattedSpent);
+                                newCategoryData.put("date_added", new java.util.Date().toString());
+
+                                // Add to categories
+                                categories.put(category, newCategoryData);
+
+                                // Update Firestore
+                                db.collection("users").document(userId)
+                                        .collection("budget").document("categories")
+                                        .set(categories)
+                                        .addOnSuccessListener(aVoid -> {
+                                            executor.execute(() -> {
+                                                try {
+                                                    dbHelper.saveBudgetCategories(userId, categories);
+
+                                                    // Update cache
+                                                    categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
+
+                                                    Map<String, Object> result = new HashMap<>();
+                                                    result.put("category", category);
+                                                    result.put("spent", amount);
+                                                    result.put("formatted_spent", formattedSpent);
+
+                                                    mainHandler.post(() -> callback.onSuccess(result));
+                                                } catch (Exception e) {
+                                                    mainHandler.post(() -> callback.onError(e));
+                                                }
+                                            });
+                                        })
+                                        .addOnFailureListener(e -> callback.onError(e));
+                            }
+                        } else {
+                            // No categories document yet, create it with this category
+                            Map<String, Object> newCategoryData = new HashMap<>();
+                            newCategoryData.put("amount", 0.0);
+                            newCategoryData.put("spent", amount);
+                            newCategoryData.put("formatted_amount", "0");
+
+                            // Format the spent amount
+                            java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
+                            String formattedSpent = formatter.format(amount)
+                                    .replace("Rp", "")
+                                    .trim();
+                            newCategoryData.put("formatted_spent", formattedSpent);
+                            newCategoryData.put("date_added", new java.util.Date().toString());
+
+                            // Create categories map
+                            Map<String, Object> categories = new HashMap<>();
+                            categories.put(category, newCategoryData);
+
+                            // Save to Firestore
+                            db.collection("users").document(userId)
+                                    .collection("budget").document("categories")
+                                    .set(categories)
+                                    .addOnSuccessListener(aVoid -> {
+                                        executor.execute(() -> {
+                                            try {
+                                                dbHelper.saveBudgetCategories(userId, categories);
+
+                                                // Update cache
+                                                categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
+                                                existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
+
+                                                Map<String, Object> result = new HashMap<>();
+                                                result.put("category", category);
+                                                result.put("spent", amount);
+                                                result.put("formatted_spent", formattedSpent);
+
+                                                mainHandler.post(() -> callback.onSuccess(result));
+                                            } catch (Exception e) {
+                                                mainHandler.post(() -> callback.onError(e));
+                                            }
+                                        });
+                                    })
+                                    .addOnFailureListener(e -> callback.onError(e));
+                        }
+                    } else {
+                        callback.onError(task.getException());
+                    }
+                });
+    }
+}

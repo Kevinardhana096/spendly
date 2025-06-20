@@ -1,23 +1,21 @@
 package com.example.spendly.model;
 
+import java.text.NumberFormat;
 import java.util.Date;
+import java.util.Locale;
 
-/**
- * Model class representing a transaction in Spendly app
- */
 public class Transaction {
     private String id;
+    private String userId;
     private double amount;
     private String category;
     private String account;
     private Date date;
     private String type; // "expense" or "income"
-    private String userId;
-    private String description;
     private String formattedAmount;
 
-    // Default constructor for Firebase
     public Transaction() {
+        // Empty constructor needed for Firestore
     }
 
     public Transaction(String userId, double amount, String category, String account, Date date, String type) {
@@ -27,9 +25,11 @@ public class Transaction {
         this.account = account;
         this.date = date;
         this.type = type;
+
+        // Format the amount
+        formatAmount();
     }
 
-    // Getters and setters
     public String getId() {
         return id;
     }
@@ -38,12 +38,29 @@ public class Transaction {
         this.id = id;
     }
 
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
     public double getAmount() {
         return amount;
     }
 
     public void setAmount(double amount) {
         this.amount = amount;
+        formatAmount();
+    }
+
+    public String getFormattedAmount() {
+        return formattedAmount;
+    }
+
+    public void setFormattedAmount(String formattedAmount) {
+        this.formattedAmount = formattedAmount;
     }
 
     public String getCategory() {
@@ -78,27 +95,23 @@ public class Transaction {
         this.type = type;
     }
 
-    public String getUserId() {
-        return userId;
+    private void formatAmount() {
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
+        this.formattedAmount = formatter.format(amount)
+                .replace("Rp", "") // Remove the currency symbol
+                .trim(); // Remove any extra spaces
     }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getFormattedAmount() {
-        return formattedAmount;
-    }
-
-    public void setFormattedAmount(String formattedAmount) {
-        this.formattedAmount = formattedAmount;
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "id='" + id + '\'' +
+                ", userId='" + userId + '\'' +
+                ", amount=" + amount +
+                ", category='" + category + '\'' +
+                ", account='" + account + '\'' +
+                ", date=" + date +
+                ", type='" + type + '\'' +
+                '}';
     }
 }

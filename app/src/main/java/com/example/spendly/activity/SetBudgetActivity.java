@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -37,6 +39,15 @@ public class SetBudgetActivity extends AppCompatActivity {
     private TextView tvRemainingBudget;
     private Button btnAddBudget;
     private ProgressBar progressBar;
+
+    // New fields for improved dropdown
+    private LinearLayout selectedCategoryContainer;
+    private LinearLayout categoriesList;
+    private TextView selectedCategoryName;
+    private ImageView selectedCategoryIcon;
+    private ImageView dropdownIcon;
+    private LinearLayout categoryFood, categoryBills;
+    private boolean isDropdownOpen = false;
 
     private String selectedCategory = "Food & Beverages";
     private double totalBudget = 0.0;
@@ -77,9 +88,20 @@ public class SetBudgetActivity extends AppCompatActivity {
     private void initViews() {
         btnBack = findViewById(R.id.btn_back);
         spinnerCategory = findViewById(R.id.spinner_category);
+
+        // Initialize new dropdown UI elements
+        selectedCategoryContainer = findViewById(R.id.selected_category_container);
+        categoriesList = findViewById(R.id.categories_list);
+        selectedCategoryName = findViewById(R.id.selected_category_name);
+        selectedCategoryIcon = findViewById(R.id.selected_category_icon);
+        dropdownIcon = findViewById(R.id.dropdown_icon);
+
+        categoryFood = findViewById(R.id.category_food);
         categoryTransportation = findViewById(R.id.category_transportation);
         categoryShopping = findViewById(R.id.category_shopping);
         categoryHealth = findViewById(R.id.category_health);
+        categoryBills = findViewById(R.id.category_bills);
+
         btnAddNewCategory = findViewById(R.id.btn_add_new_category);
         etTotalBudget = findViewById(R.id.et_total_budget);
         tvRemainingBudget = findViewById(R.id.tv_remaining_budget);
@@ -88,22 +110,55 @@ public class SetBudgetActivity extends AppCompatActivity {
     }
 
     private void setupSpinner() {
-        String[] categories = {"Food & Beverages", "Transportation", "Shopping", "Health and Sport"};
+        String[] categories = {"Food & Beverages", "Transportation", "Shopping", "Health and Sport", "Bills & Utilities"};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, categories);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCategory.setAdapter(adapter);
+
+        // Set default category in dropdown UI
+        selectedCategoryName.setText(selectedCategory);
     }
 
     private void setupClickListeners() {
         btnBack.setOnClickListener(v -> finish());
 
+        // Custom dropdown toggle
+        selectedCategoryContainer.setOnClickListener(v -> toggleCategoryDropdown());
+
+        // Category selection click listeners
+        categoryFood.setOnClickListener(v -> selectCategory("Food & Beverages"));
         categoryTransportation.setOnClickListener(v -> selectCategory("Transportation"));
         categoryShopping.setOnClickListener(v -> selectCategory("Shopping"));
         categoryHealth.setOnClickListener(v -> selectCategory("Health and Sport"));
+        categoryBills.setOnClickListener(v -> selectCategory("Bills & Utilities"));
 
         btnAddNewCategory.setOnClickListener(v -> showAddCategoryDialog());
 
         btnAddBudget.setOnClickListener(v -> saveBudget());
+    }
+
+    /**
+     * Toggle the category dropdown visibility
+     */
+    private void toggleCategoryDropdown() {
+        isDropdownOpen = !isDropdownOpen;
+
+        // Show or hide the categories list
+        categoriesList.setVisibility(isDropdownOpen ? View.VISIBLE : View.GONE);
+
+        // Rotate dropdown arrow icon
+        float startDegrees = isDropdownOpen ? 0f : 180f;
+        float endDegrees = isDropdownOpen ? 180f : 0f;
+
+        RotateAnimation rotateAnimation = new RotateAnimation(
+                startDegrees, endDegrees,
+                Animation.RELATIVE_TO_SELF, 0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f
+        );
+
+        rotateAnimation.setDuration(300);
+        rotateAnimation.setFillAfter(true);
+        dropdownIcon.startAnimation(rotateAnimation);
     }
 
     private void setupTextWatcher() {
@@ -125,13 +180,51 @@ public class SetBudgetActivity extends AppCompatActivity {
     private void selectCategory(String category) {
         selectedCategory = category;
 
-        // Update spinner selection
-        String[] categories = {"Food & Beverages", "Transportation", "Shopping", "Health and Sport"};
+        // Update visual state of dropdown
+        selectedCategoryName.setText(category);
+
+        // Update category icon based on selection
+        int iconRes = R.drawable.ic_food;
+        int colorRes = R.color.orange_primary;
+
+        switch (category) {
+            case "Food & Beverages":
+                iconRes = R.drawable.ic_food;
+                colorRes = R.color.orange_primary;
+                break;
+            case "Transportation":
+                iconRes = R.drawable.ic_transportation;
+                colorRes = R.color.blue_primary;
+                break;
+            case "Shopping":
+                iconRes = R.drawable.ic_shopping;
+                colorRes = R.color.pink_primary;
+                break;
+            case "Health and Sport":
+                iconRes = R.drawable.ic_health;
+                colorRes = R.color.green_primary;
+                break;
+            case "Bills & Utilities":
+                iconRes = R.drawable.ic_bills;
+                colorRes = R.color.purple_primary;
+                break;
+        }
+
+        selectedCategoryIcon.setImageResource(iconRes);
+        selectedCategoryIcon.setColorFilter(getResources().getColor(colorRes));
+
+        // Update spinner selection for backward compatibility
+        String[] categories = {"Food & Beverages", "Transportation", "Shopping", "Health and Sport", "Bills & Utilities"};
         for (int i = 0; i < categories.length; i++) {
             if (categories[i].equals(category)) {
                 spinnerCategory.setSelection(i);
                 break;
             }
+        }
+
+        // Close dropdown after selection
+        if (isDropdownOpen) {
+            toggleCategoryDropdown();
         }
 
         Toast.makeText(this, category + " selected", Toast.LENGTH_SHORT).show();
@@ -263,6 +356,7 @@ public class SetBudgetActivity extends AppCompatActivity {
         Map<String, Object> categoryData = new HashMap<>();
         categoryData.put("amount", amount);
         categoryData.put("formatted_amount", formattedAmount);
+        // Initialize spent to 0 (important - don't set it to the budget amount)
         categoryData.put("spent", 0.0);
         categoryData.put("formatted_spent", "0");
         categoryData.put("date_added", new Date().toString());
@@ -289,37 +383,14 @@ public class SetBudgetActivity extends AppCompatActivity {
     private void updateRemainingBudgetInRepository(final double newRemainingBudget) {
         String formattedRemaining = formatNumber((int) newRemainingBudget);
 
-        budgetRepository.updateRemainingBudget(newRemainingBudget, formattedRemaining,
-                new BudgetRepository.BudgetCallback() {
-                    @Override
-                    public void onSuccess(Map<String, Object> data) {
-                        progressBar.setVisibility(View.GONE);
+        // Instead of updating the remaining budget value, just check budget completion
+        // The remaining budget won't change when setting up category budgets
+        checkBudgetCompletion();
 
-                        // Check if data was saved offline-only
-                        boolean isOfflineOnly = data.containsKey("offline_only") && (boolean) data.get("offline_only");
-                        if (isOfflineOnly) {
-                            Toast.makeText(SetBudgetActivity.this,
-                                    "Budget saved locally. Will sync when connection is available.",
-                                    Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(SetBudgetActivity.this,
-                                    "Budget category added successfully",
-                                    Toast.LENGTH_SHORT).show();
-                        }
-
-                        remainingBudget = newRemainingBudget;
-                        checkBudgetCompletion();
-                    }
-
-                    @Override
-                    public void onError(Exception e) {
-                        progressBar.setVisibility(View.GONE);
-                        btnAddBudget.setEnabled(true);
-                        Toast.makeText(SetBudgetActivity.this,
-                                "Failed to update remaining budget: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    }
-                });
+        progressBar.setVisibility(View.GONE);
+        Toast.makeText(SetBudgetActivity.this,
+                "Budget category added successfully",
+                Toast.LENGTH_SHORT).show();
     }
 
     private void checkBudgetCompletion() {
@@ -346,4 +417,3 @@ public class SetBudgetActivity extends AppCompatActivity {
         return String.format("%,d", number).replace(",", ".");
     }
 }
-

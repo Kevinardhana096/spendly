@@ -72,6 +72,7 @@
                 android:orientation="vertical"
                 android:layout_marginBottom="32dp">
 
+                <!-- Section Header -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -81,148 +82,256 @@
                     android:textColor="@color/black"
                     android:layout_marginBottom="16dp" />
 
-                <!-- Category Dropdown -->
-                <Spinner
-                    android:id="@+id/spinner_category"
-                    android:layout_width="match_parent"
-                    android:layout_height="48dp"
-                    android:background="@drawable/spinner_background"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:layout_marginBottom="16dp" />
-
-                <!-- Category Options List -->
-                <LinearLayout
+                <!-- Category Selection Card -->
+                <androidx.cardview.widget.CardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="2dp">
 
-                    <!-- Transportation -->
                     <LinearLayout
-                        android:id="@+id/category_transportation"
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:background="@drawable/category_item_background"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="16dp"
-                        android:layout_marginBottom="8dp"
-                        android:clickable="true"
-                        android:focusable="true">
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
 
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_transportation"
-                            android:layout_marginEnd="12dp"
-                            app:tint="@color/blue_primary" />
+                        <!-- Selected Category Display (Replaces Spinner) -->
+                        <LinearLayout
+                            android:id="@+id/selected_category_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true">
 
-                        <TextView
-                            android:layout_width="0dp"
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical">
+
+                                <ImageView
+                                    android:id="@+id/selected_category_icon"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_food"
+                                    android:layout_marginEnd="12dp"
+                                    app:tint="@color/orange_primary" />
+
+                                <TextView
+                                    android:id="@+id/selected_category_name"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Food &amp; Beverages"
+                                    android:textSize="16sp"
+                                    android:textColor="@color/black" />
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/dropdown_icon"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@drawable/ic_arrow_down"
+                                app:tint="@color/text_gray" />
+                        </LinearLayout>
+
+                        <!-- Divider -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="@color/divider_gray" />
+
+                        <!-- Categories List (Hidden by default) -->
+                        <LinearLayout
+                            android:id="@+id/categories_list"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Transportation"
-                            android:textSize="14sp"
-                            android:textColor="@color/black" />
+                            android:orientation="vertical"
+                            android:visibility="gone">
 
+                            <!-- Food & Beverages -->
+                            <LinearLayout
+                                android:id="@+id/category_food"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_food"
+                                    android:layout_marginEnd="12dp"
+                                    app:tint="@color/orange_primary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Food &amp; Beverages"
+                                    android:textSize="14sp"
+                                    android:textColor="@color/black" />
+                            </LinearLayout>
+
+                            <!-- Transportation -->
+                            <LinearLayout
+                                android:id="@+id/category_transportation"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_transportation"
+                                    android:layout_marginEnd="12dp"
+                                    app:tint="@color/blue_primary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Transportation"
+                                    android:textSize="14sp"
+                                    android:textColor="@color/black" />
+                            </LinearLayout>
+
+                            <!-- Shopping -->
+                            <LinearLayout
+                                android:id="@+id/category_shopping"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_shopping"
+                                    android:layout_marginEnd="12dp"
+                                    app:tint="@color/pink_primary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Shopping"
+                                    android:textSize="14sp"
+                                    android:textColor="@color/black" />
+                            </LinearLayout>
+
+                            <!-- Health and Sport -->
+                            <LinearLayout
+                                android:id="@+id/category_health"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_health"
+                                    android:layout_marginEnd="12dp"
+                                    app:tint="@color/green_primary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Health and Sport"
+                                    android:textSize="14sp"
+                                    android:textColor="@color/black" />
+                            </LinearLayout>
+
+                            <!-- Bills & Utilities -->
+                            <LinearLayout
+                                android:id="@+id/category_bills"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:orientation="horizontal"
+                                android:gravity="center_vertical"
+                                android:paddingStart="16dp"
+                                android:paddingEnd="16dp"
+                                android:background="?attr/selectableItemBackground"
+                                android:clickable="true"
+                                android:focusable="true">
+
+                                <ImageView
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:src="@drawable/ic_bills"
+                                    android:layout_marginEnd="12dp"
+                                    app:tint="@color/purple_primary" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Bills &amp; Utilities"
+                                    android:textSize="14sp"
+                                    android:textColor="@color/black" />
+                            </LinearLayout>
+                        </LinearLayout>
                     </LinearLayout>
+                </androidx.cardview.widget.CardView>
 
-                    <!-- Shopping -->
-                    <LinearLayout
-                        android:id="@+id/category_shopping"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:background="@drawable/category_item_background"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="16dp"
-                        android:layout_marginBottom="8dp"
-                        android:clickable="true"
-                        android:focusable="true">
+                <!-- Add New Category Button -->
+                <LinearLayout
+                    android:id="@+id/btn_add_new_category"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="@drawable/add_category_background"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:clickable="true"
+                    android:focusable="true">
 
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_shopping"
-                            android:layout_marginEnd="12dp"
-                            app:tint="@color/pink_primary" />
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_add_small"
+                        android:layout_marginEnd="12dp"
+                        app:tint="@color/purple_primary" />
 
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Shopping"
-                            android:textSize="14sp"
-                            android:textColor="@color/black" />
-
-                    </LinearLayout>
-
-                    <!-- Health and Sport -->
-                    <LinearLayout
-                        android:id="@+id/category_health"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:background="@drawable/category_item_background"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="16dp"
-                        android:layout_marginBottom="8dp"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_health"
-                            android:layout_marginEnd="12dp"
-                            app:tint="@color/green_primary" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Health and Sport"
-                            android:textSize="14sp"
-                            android:textColor="@color/black" />
-
-                    </LinearLayout>
-
-                    <!-- Add New Category -->
-                    <LinearLayout
-                        android:id="@+id/btn_add_new_category"
-                        android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical"
-                        android:background="@drawable/add_category_background"
-                        android:paddingStart="16dp"
-                        android:paddingEnd="16dp"
-                        android:layout_marginBottom="16dp"
-                        android:clickable="true"
-                        android:focusable="true">
-
-                        <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            android:src="@drawable/ic_add_small"
-                            android:layout_marginEnd="12dp"
-                            app:tint="@color/purple_primary" />
-
-                        <TextView
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Add new category"
-                            android:textSize="14sp"
-                            android:textColor="@color/purple_primary" />
-
-                    </LinearLayout>
-
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Add new category"
+                        android:textSize="14sp"
+                        android:textColor="@color/purple_primary" />
                 </LinearLayout>
 
+                <!-- Hidden Spinner (Keep for backward compatibility) -->
+                <Spinner
+                    android:id="@+id/spinner_category"
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <!-- Total Budget Section -->

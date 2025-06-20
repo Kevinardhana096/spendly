@@ -33,4 +33,12 @@
     <style name="KeypadButton.Placeholder" parent="KeypadButtonBase">
         <item name="android:background">@drawable/keypad_button_placeholder_background</item>
     </style>
+
+    <!-- Dialog styles -->
+    <style name="DialogFullWidth" parent="Theme.AppCompat.Light.Dialog">
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowIsFloating">true</item>
+    </style>
 </resources>
