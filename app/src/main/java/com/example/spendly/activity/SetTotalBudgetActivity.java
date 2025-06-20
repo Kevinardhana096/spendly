@@ -209,10 +209,9 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
                             Toast.LENGTH_SHORT).show();
                 }
 
-                // Navigate to SetBudgetActivity to set budget categories
-                Intent intent = new Intent(SetTotalBudgetActivity.this, SetBudgetActivity.class);
-                intent.putExtra("monthly_budget", monthlyBudget);
-                intent.putExtra("remaining_budget", monthlyBudget);
+                // Navigate back to MainActivity instead of going to SetBudgetActivity
+                Intent intent = new Intent(SetTotalBudgetActivity.this, MainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(intent);
 
                 // Finish this activity

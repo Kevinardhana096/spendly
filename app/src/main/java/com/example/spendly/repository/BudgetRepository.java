@@ -22,10 +22,8 @@ import java.util.concurrent.Executors;
 
 public class BudgetRepository {
     private static final String TAG = "BudgetRepository";
-
     // Singleton instance
     private static BudgetRepository instance;
-
     private final FirebaseFirestore db;
     private final FirebaseAuth auth;
     private final BudgetDatabaseHelper dbHelper;

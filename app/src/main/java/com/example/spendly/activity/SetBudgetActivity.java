@@ -330,10 +330,14 @@ public class SetBudgetActivity extends AppCompatActivity {
             db.collection("users").document(userId)
                     .update("budget_setup_completed", true)
                     .addOnCompleteListener(task -> {
-                        // Finish this activity and return to the BudgetFragment
+                        // Show success message before finishing
+                        Toast.makeText(this, "Budget category added successfully", Toast.LENGTH_SHORT).show();
+
+                        // Simply finish this activity to return to BudgetFragment
                         finish();
                     });
         } else {
+            Toast.makeText(this, "Budget category added successfully", Toast.LENGTH_SHORT).show();
             finish();
         }
     }
@@ -342,3 +346,4 @@ public class SetBudgetActivity extends AppCompatActivity {
         return String.format("%,d", number).replace(",", ".");
     }
 }
+

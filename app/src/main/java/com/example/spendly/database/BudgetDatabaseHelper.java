@@ -36,6 +36,10 @@ public class BudgetDatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_FORMATTED_SPENT = "formatted_spent";
     private static final String COLUMN_DATE_ADDED = "date_added";
 
+    // Maintain a single database instance
+    private SQLiteDatabase mWritableDb;
+    private SQLiteDatabase mReadableDb;
+
     // Constructor
     public BudgetDatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -80,10 +84,37 @@ public class BudgetDatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    // CRUD Operations for Total Budget Table
+    // Helper methods to get database connections
+    private synchronized SQLiteDatabase getReadableDb() {
+        if (mReadableDb == null || !mReadableDb.isOpen()) {
+            mReadableDb = getReadableDatabase();
+        }
+        return mReadableDb;
+    }
 
+    private synchronized SQLiteDatabase getWritableDb() {
+        if (mWritableDb == null || !mWritableDb.isOpen()) {
+            mWritableDb = getWritableDatabase();
+        }
+        return mWritableDb;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (mReadableDb != null && mReadableDb.isOpen()) {
+            mReadableDb.close();
+            mReadableDb = null;
+        }
+        if (mWritableDb != null && mWritableDb.isOpen()) {
+            mWritableDb.close();
+            mWritableDb = null;
+        }
+        super.close();
+    }
+
+    // CRUD Operations for Total Budget Table
     public void saveTotalBudget(String userId, Map<String, Object> budgetData) {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = getWritableDb();
         ContentValues values = new ContentValues();
 
         values.put(COLUMN_USER_ID, userId);
@@ -124,36 +155,39 @@ public class BudgetDatabaseHelper extends SQLiteOpenHelper {
 
         // Insert or replace if entry already exists
         db.insertWithOnConflict(TABLE_TOTAL_BUDGET, null, values, SQLiteDatabase.CONFLICT_REPLACE);
-        db.close();
     }
 
     public Map<String, Object> getTotalBudget(String userId) {
-        SQLiteDatabase db = this.getReadableDatabase();
+        SQLiteDatabase db = getReadableDb();
         Map<String, Object> budgetData = new HashMap<>();
 
         String query = "SELECT * FROM " + TABLE_TOTAL_BUDGET +
                 " WHERE " + COLUMN_USER_ID + " = ?";
 
-        Cursor cursor = db.rawQuery(query, new String[]{userId});
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(query, new String[]{userId});
 
-        if (cursor.moveToFirst()) {
-            budgetData.put("monthly_income", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_MONTHLY_INCOME)));
-            budgetData.put("monthly_budget", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_MONTHLY_BUDGET)));
-            budgetData.put("remaining_budget", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_REMAINING_BUDGET)));
-            budgetData.put("income_formatted", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_INCOME_FORMATTED)));
-            budgetData.put("budget_formatted", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_BUDGET_FORMATTED)));
-            budgetData.put("remaining_formatted", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_REMAINING_FORMATTED)));
-            budgetData.put("setup_date", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SETUP_DATE)));
-            budgetData.put("last_updated", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_UPDATED)));
+            if (cursor != null && cursor.moveToFirst()) {
+                budgetData.put("monthly_income", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_MONTHLY_INCOME)));
+                budgetData.put("monthly_budget", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_MONTHLY_BUDGET)));
+                budgetData.put("remaining_budget", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_REMAINING_BUDGET)));
+                budgetData.put("income_formatted", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_INCOME_FORMATTED)));
+                budgetData.put("budget_formatted", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_BUDGET_FORMATTED)));
+                budgetData.put("remaining_formatted", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_REMAINING_FORMATTED)));
+                budgetData.put("setup_date", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SETUP_DATE)));
+                budgetData.put("last_updated", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_LAST_UPDATED)));
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
         }
-
-        cursor.close();
-        db.close();
         return budgetData;
     }
 
     public void updateRemainingBudget(String userId, double newRemainingBudget, String formattedRemaining) {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = getWritableDb();
         ContentValues values = new ContentValues();
 
         values.put(COLUMN_REMAINING_BUDGET, newRemainingBudget);
@@ -161,13 +195,11 @@ public class BudgetDatabaseHelper extends SQLiteOpenHelper {
 
         db.update(TABLE_TOTAL_BUDGET, values, COLUMN_USER_ID + " = ?",
                 new String[]{userId});
-        db.close();
     }
 
     // CRUD Operations for Budget Categories Table
-
     public void saveBudgetCategory(String userId, String category, Map<String, Object> categoryData) {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = getWritableDb();
         ContentValues values = new ContentValues();
 
         values.put(COLUMN_USER_ID, userId);
@@ -204,11 +236,10 @@ public class BudgetDatabaseHelper extends SQLiteOpenHelper {
 
         // Insert or replace if entry already exists
         db.insertWithOnConflict(TABLE_BUDGET_CATEGORIES, null, values, SQLiteDatabase.CONFLICT_REPLACE);
-        db.close();
     }
 
     public void saveBudgetCategories(String userId, Map<String, Object> categoriesData) {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = getWritableDb();
 
         // Start a transaction for bulk insert
         db.beginTransaction();
@@ -260,78 +291,90 @@ public class BudgetDatabaseHelper extends SQLiteOpenHelper {
         } finally {
             db.endTransaction();
         }
-
-        db.close();
     }
 
     public Map<String, Object> getBudgetCategories(String userId) {
-        SQLiteDatabase db = this.getReadableDatabase();
+        SQLiteDatabase db = getReadableDb();
         Map<String, Object> categoriesData = new HashMap<>();
 
         String query = "SELECT * FROM " + TABLE_BUDGET_CATEGORIES +
                 " WHERE " + COLUMN_USER_ID + " = ?";
 
-        Cursor cursor = db.rawQuery(query, new String[]{userId});
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(query, new String[]{userId});
 
-        while (cursor.moveToNext()) {
-            String category = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CATEGORY));
+            while (cursor != null && cursor.moveToNext()) {
+                String category = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CATEGORY));
 
-            Map<String, Object> categoryData = new HashMap<>();
-            categoryData.put("amount", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT)));
-            categoryData.put("formatted_amount", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FORMATTED_AMOUNT)));
-            categoryData.put("spent", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_SPENT)));
-            categoryData.put("formatted_spent", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FORMATTED_SPENT)));
-            categoryData.put("date_added", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE_ADDED)));
+                Map<String, Object> categoryData = new HashMap<>();
+                categoryData.put("amount", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_AMOUNT)));
+                categoryData.put("formatted_amount", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FORMATTED_AMOUNT)));
+                categoryData.put("spent", cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_SPENT)));
+                categoryData.put("formatted_spent", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FORMATTED_SPENT)));
+                categoryData.put("date_added", cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE_ADDED)));
 
-            categoriesData.put(category, categoryData);
+                categoriesData.put(category, categoryData);
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
         }
-
-        cursor.close();
-        db.close();
         return categoriesData;
     }
 
     public boolean hasBudgetData(String userId) {
-        SQLiteDatabase db = this.getReadableDatabase();
+        SQLiteDatabase db = getReadableDb();
+        boolean hasData = false;
 
         String query = "SELECT COUNT(*) FROM " + TABLE_TOTAL_BUDGET +
                 " WHERE " + COLUMN_USER_ID + " = ?";
 
-        Cursor cursor = db.rawQuery(query, new String[]{userId});
-        cursor.moveToFirst();
-        int count = cursor.getInt(0);
-
-        cursor.close();
-        db.close();
-
-        return count > 0;
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(query, new String[]{userId});
+            if (cursor != null && cursor.moveToFirst()) {
+                int count = cursor.getInt(0);
+                hasData = count > 0;
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return hasData;
     }
 
     public boolean hasBudgetCategories(String userId) {
-        SQLiteDatabase db = this.getReadableDatabase();
+        SQLiteDatabase db = getReadableDb();
+        boolean hasCategories = false;
 
         String query = "SELECT COUNT(*) FROM " + TABLE_BUDGET_CATEGORIES +
                 " WHERE " + COLUMN_USER_ID + " = ?";
 
-        Cursor cursor = db.rawQuery(query, new String[]{userId});
-        cursor.moveToFirst();
-        int count = cursor.getInt(0);
-
-        cursor.close();
-        db.close();
-
-        return count > 0;
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(query, new String[]{userId});
+            if (cursor != null && cursor.moveToFirst()) {
+                int count = cursor.getInt(0);
+                hasCategories = count > 0;
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return hasCategories;
     }
 
     public void deleteBudgetData(String userId) {
-        SQLiteDatabase db = this.getWritableDatabase();
+        SQLiteDatabase db = getWritableDb();
 
         // Delete from total budget table
         db.delete(TABLE_TOTAL_BUDGET, COLUMN_USER_ID + " = ?", new String[]{userId});
 
         // Delete from budget categories table
         db.delete(TABLE_BUDGET_CATEGORIES, COLUMN_USER_ID + " = ?", new String[]{userId});
-
-        db.close();
     }
 }
