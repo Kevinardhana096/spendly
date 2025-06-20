@@ -34,4 +34,8 @@
     <color name="orange_light_background">#FFF7ED</color>
     <color name="orange_light_border">#FED7AA</color>
     <color name="red_light_background">#FF0000</color>
+
+    <!-- Additional colors for illustration -->
+    <color name="illustration_border">#D1D5DB</color>
+    <color name="character_skin">#FBBF24</color>
 </resources>

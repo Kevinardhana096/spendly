@@ -14,6 +14,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class SignInActivity extends AppCompatActivity {
 
@@ -24,6 +25,7 @@ public class SignInActivity extends AppCompatActivity {
 
     // Firebase Auth
     private FirebaseAuth mAuth;
+    private FirebaseFirestore mFirestore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +34,7 @@ public class SignInActivity extends AppCompatActivity {
 
         // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
+        mFirestore = FirebaseFirestore.getInstance();
 
         // Hide the action bar if it exists
         if (getSupportActionBar() != null) {
@@ -87,8 +90,8 @@ public class SignInActivity extends AppCompatActivity {
         // Check if user is signed in (non-null)
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if(currentUser != null){
-            // User is already signed in, go directly to MainActivity
-            goToMainActivity();
+            // User is already signed in, check if PIN is set
+            checkPinCodeAndRedirect(currentUser.getUid());
         }
     }
 
@@ -105,7 +108,12 @@ public class SignInActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         // Sign in success
                         Toast.makeText(getApplicationContext(), "Login Successful", Toast.LENGTH_SHORT).show();
-                        goToMainActivity();
+
+                        // Check if PIN is set and redirect accordingly
+                        FirebaseUser user = mAuth.getCurrentUser();
+                        if (user != null) {
+                            checkPinCodeAndRedirect(user.getUid());
+                        }
                     } else {
                         // If sign in fails, display a message to the user
                         if (task.getException() instanceof FirebaseAuthInvalidUserException) {
@@ -121,8 +129,40 @@ public class SignInActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Check if user has set a PIN code and redirect accordingly
+     */
+    private void checkPinCodeAndRedirect(String userId) {
+        mFirestore.collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists() && documentSnapshot.contains("pinCodeSet")
+                            && Boolean.TRUE.equals(documentSnapshot.getBoolean("pinCodeSet"))) {
+                        // PIN is already set, go to main activity
+                        goToMainActivity();
+                    } else {
+                        // PIN is not set, go to SetPinCodeActivity
+                        goToSetPinCodeActivity();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    // On error, go to PIN setup as a safety measure
+                    Toast.makeText(getApplicationContext(), "Error checking user data: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                    goToSetPinCodeActivity();
+                });
+    }
+
     private void goToMainActivity() {
         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish(); // Close this activity so user can't go back
+    }
+
+    private void goToSetPinCodeActivity() {
+        Intent intent = new Intent(getApplicationContext(), SetPinCodeActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish(); // Close this activity so user can't go back
