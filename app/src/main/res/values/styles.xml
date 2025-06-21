@@ -34,6 +34,11 @@
         <item name="android:background">@drawable/keypad_button_placeholder_background</item>
     </style>
 
+    <style name="CircularFAB" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
     <!-- Dialog styles -->
     <style name="DialogFullWidth" parent="Theme.AppCompat.Light.Dialog">
         <item name="android:windowMinWidthMajor">90%</item>

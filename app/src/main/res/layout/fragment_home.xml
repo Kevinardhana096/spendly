@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_background_light">
+    android:background="@drawable/home_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -133,7 +133,7 @@
                     <!-- Background Progress Bar -->
                     <View
                         android:layout_width="match_parent"
-                        android:layout_height="8dp"
+                        android:layout_height="15dp"
                         android:background="@drawable/progress_background"
                         android:layout_centerVertical="true" />
 
@@ -195,36 +195,37 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:weightSum="2">
+            android:weightSum="2"
+            android:layout_marginTop="16dp">
 
             <!-- First Card with Lightning Icon -->
             <androidx.cardview.widget.CardView
                 android:id="@+id/outcome"
                 android:layout_width="0dp"
-                android:layout_height="140dp"
+                android:layout_height="100dp"
                 android:layout_weight="1"
-                android:layout_marginEnd="10dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="8dp">
+                android:layout_marginEnd="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/gradient_background_light_purple"
                     android:orientation="vertical"
-                    android:padding="20dp"
-                    android:gravity="center">
+                    android:padding="16dp"
+                    android:gravity="end">
 
                     <androidx.cardview.widget.CardView
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        app:cardCornerRadius="20dp"
-                        app:cardElevation="4dp"
-                        android:layout_marginBottom="12dp">
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="2dp"
+                        android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_trending_down"
                             android:background="@color/white"
@@ -238,8 +239,9 @@
                         android:layout_height="wrap_content"
                         android:text="Rp9.500.000"
                         android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_gravity="end" />
 
                 </LinearLayout>
 
@@ -249,30 +251,30 @@
             <androidx.cardview.widget.CardView
                 android:id="@+id/income"
                 android:layout_width="0dp"
-                android:layout_height="140dp"
+                android:layout_height="100dp"
                 android:layout_weight="1"
-                android:layout_marginStart="10dp"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="8dp">
+                android:layout_marginStart="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="6dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="@drawable/gradient_background_light_purple"
+                    android:background="@drawable/gradient_background_purple"
                     android:orientation="vertical"
-                    android:padding="20dp"
-                    android:gravity="center">
+                    android:padding="16dp"
+                    android:gravity="end">
 
                     <androidx.cardview.widget.CardView
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        app:cardCornerRadius="20dp"
-                        app:cardElevation="4dp"
-                        android:layout_marginBottom="12dp">
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="2dp"
+                        android:layout_marginBottom="8dp">
 
                         <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
+                            android:layout_width="18dp"
+                            android:layout_height="18dp"
                             android:layout_gravity="center"
                             android:src="@drawable/ic_trending_up"
                             android:background="@color/white"
@@ -286,8 +288,9 @@
                         android:layout_height="wrap_content"
                         android:text="Rp500.000"
                         android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:layout_gravity="end" />
 
                 </LinearLayout>
 

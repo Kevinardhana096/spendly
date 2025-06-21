@@ -7,26 +7,41 @@
     tools:context=".activity.MainActivity"
     android:id="@+id/main">
 
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="    app:maxImageSize=&quot;32dp&quot;"
+        tools:ignore="MissingConstraints" />
+
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_nav_container"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_navigation"
+    <FrameLayout
+        android:id="@+id/bottom_nav_container"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@drawable/gradient_background_light_purple"
+        android:layout_height="80dp"
+        android:background="@android:color/transparent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:menu="@menu/bottom_nav_menu"
-        app:itemIconTint="@color/nav_item_color"
-        app:itemTextColor="@color/nav_item_color" />
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.example.spendly.view.CurvedBottomNavigationView
+            android:id="@+id/bottom_navigation"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:labelVisibilityMode="unlabeled"
+            app:itemIconTint="@color/purple_primary"
+            app:itemTextColor="@color/nav_item_color"
+            app:menu="@menu/bottom_nav_menu" />
+
+    </FrameLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_add"
@@ -34,9 +49,14 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="-30dp"
         android:src="@drawable/ic_add_bold"
-        app:backgroundTint="@color/purple_primary"
-        app:tint="@color/white"
-        app:layout_constraintBottom_toTopOf="@+id/bottom_navigation"
+        app:backgroundTint="@color/white"
+        app:tint="@color/purple_primary"
+        app:fabSize="normal"
+        app:shapeAppearanceOverlay="@style/CircularFAB"
+        app:borderWidth="0dp"
+        app:elevation="6dp"
+        app:maxImageSize="62dp"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_nav_container"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
