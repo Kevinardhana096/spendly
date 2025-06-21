@@ -144,7 +144,12 @@ public class AddSavingsActivity extends AppCompatActivity {
                 R.drawable.ic_transportation,
                 R.drawable.ic_shopping,
                 R.drawable.ic_health,
-                R.drawable.ic_others
+                R.drawable.ic_others,
+                R.drawable.ic_others, // Education
+                R.drawable.ic_others, // Investment
+                R.drawable.ic_others, // Travel
+                R.drawable.ic_others, // Gadgets
+                R.drawable.ic_others  // Others
         };
 
         int[] colors = {
@@ -154,6 +159,10 @@ public class AddSavingsActivity extends AppCompatActivity {
                 R.color.green_primary,
                 R.color.purple_primary,
                 R.color.red_primary,
+                R.color.orange_primary, // Investment
+                R.color.blue_primary,   // Travel
+                R.color.pink_primary,   // Gadgets
+                R.color.purple_primary  // Others
         };
 
         builder.setItems(categories, (dialog, which) -> {
@@ -316,18 +325,19 @@ public class AddSavingsActivity extends AppCompatActivity {
                     System.currentTimeMillis()
             );
 
-            // Save to database or pass back to parent
+            // Prepare result intent with all necessary data
             Intent resultIntent = new Intent();
             resultIntent.putExtra("target_name", targetName);
             resultIntent.putExtra("target_category", selectedCategory);
             resultIntent.putExtra("target_amount", amount);
-            resultIntent.putExtra("completion_date", dateFormat.format(completionCalendar.getTime()));
+            resultIntent.putExtra("completion_date", completionCalendar.getTimeInMillis());
+            resultIntent.putExtra("completion_date_str", dateFormat.format(completionCalendar.getTime()));
             resultIntent.putExtra("photo_uri", selectedPhotoUri != null ? selectedPhotoUri.toString() : null);
             resultIntent.putExtra("amount_formatted", formatNumber((long) amount));
+            resultIntent.putExtra("created_at", System.currentTimeMillis());
 
+            // Set the result and finish
             setResult(RESULT_OK, resultIntent);
-
-            Toast.makeText(this, "Target added successfully: " + targetName, Toast.LENGTH_SHORT).show();
             finish();
 
         } catch (NumberFormatException e) {
