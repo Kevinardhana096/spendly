@@ -1,9 +1,11 @@
 package com.example.spendly.fragment;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -15,6 +17,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.spendly.R;
+import com.example.spendly.activity.AddTransactionActivity;
 import com.example.spendly.model.Transaction;
 import com.example.spendly.repository.TransactionRepository;
 import com.google.firebase.auth.FirebaseAuth;
@@ -33,6 +36,9 @@ public class HistoryFragment extends Fragment {
     private TransactionRepository transactionRepository;
     private List<Transaction> transactions = new ArrayList<>();
     private Map<String, List<Transaction>> groupedByDateTransactions = new TreeMap<>();
+    private View emptyStateView;
+    private View contentView;
+    private Button addTransactionButton;
 
     public HistoryFragment() {
         // Required empty public constructor
@@ -52,6 +58,9 @@ public class HistoryFragment extends Fragment {
         // Initialize views
         transactionsRecyclerView = view.findViewById(R.id.transactions_recycler_view);
         ImageView filterButton = view.findViewById(R.id.btn_filter);
+        emptyStateView = view.findViewById(R.id.empty_state_view);
+        contentView = view.findViewById(R.id.content_view);
+        addTransactionButton = emptyStateView.findViewById(R.id.add_transaction_button);
 
         // Set up RecyclerView
         transactionsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
@@ -62,6 +71,12 @@ public class HistoryFragment extends Fragment {
         filterButton.setOnClickListener(v -> {
             // Future implementation for filtering
             Toast.makeText(getContext(), "Filter functionality coming soon", Toast.LENGTH_SHORT).show();
+        });
+
+        // Set up "Add Transaction" button in empty state view
+        addTransactionButton.setOnClickListener(v -> {
+            Intent intent = new Intent(getActivity(), AddTransactionActivity.class);
+            startActivity(intent);
         });
 
         // Load transactions
@@ -101,6 +116,7 @@ public class HistoryFragment extends Fragment {
                         // Update UI on main thread
                         if (getActivity() != null) {
                             getActivity().runOnUiThread(() -> {
+                                updateUIState();
                                 transactionAdapter.refreshData();
                             });
                         }
@@ -117,6 +133,17 @@ public class HistoryFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void updateUIState() {
+        // Show empty state if no transactions, otherwise show content
+        if (transactions.isEmpty()) {
+            emptyStateView.setVisibility(View.VISIBLE);
+            contentView.setVisibility(View.GONE);
+        } else {
+            emptyStateView.setVisibility(View.GONE);
+            contentView.setVisibility(View.VISIBLE);
+        }
     }
 
     private void groupTransactionsByDate() {

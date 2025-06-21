@@ -44,8 +44,18 @@
 
     </LinearLayout>
 
+    <!-- Empty State View -->
+    <include
+        android:id="@+id/empty_state_view"
+        layout="@layout/fragment_history_empty_state"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
     <!-- Scrollable Content -->
     <ScrollView
+        android:id="@+id/content_view"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
