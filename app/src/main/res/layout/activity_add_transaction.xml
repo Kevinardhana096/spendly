@@ -210,15 +210,16 @@
                 </androidx.cardview.widget.CardView>
             </LinearLayout>
 
-            <!-- Categories Container (for dynamically added budget categories) -->
+            <!-- Categories Section -->
             <LinearLayout
-                android:id="@+id/categories_container"
+                android:id="@+id/categories_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginBottom="24dp">
 
                 <TextView
+                    android:id="@+id/tv_category_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Select Category"
@@ -227,7 +228,72 @@
                     android:textColor="@color/black"
                     android:layout_marginBottom="16dp" />
 
-                <!-- Budget categories will be added here dynamically -->
+                <!-- Categories Container (for dynamically added budget categories) -->
+                <LinearLayout
+                    android:id="@+id/categories_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <!-- Budget categories RecyclerView will be added here dynamically -->
+
+                </LinearLayout>
+
+                <!-- Empty State View (shown when no budget is set) -->
+                <LinearLayout
+                    android:id="@+id/empty_state_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="24dp"
+                    android:background="@drawable/empty_state_background"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp">
+
+                    <ImageView
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:layout_marginBottom="16dp"
+                        android:src="@drawable/ic_category_outline"
+                        app:tint="@color/text_gray" />
+
+                    <TextView
+                        android:id="@+id/tv_empty_state_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="No Budget Categories"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/black"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:id="@+id/tv_empty_state_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center"
+                        android:text="You can still add transactions.\nSet up budget categories for better tracking."
+                        android:textColor="@color/text_gray"
+                        android:textSize="14sp"
+                        android:lineSpacingExtra="2dp" />
+
+                    <Button
+                        android:id="@+id/btn_setup_budget"
+                        android:layout_width="wrap_content"
+                        android:layout_height="36dp"
+                        android:text="Setup Budget"
+                        android:textColor="@color/white"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/purple_primary"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp" />
+
+                </LinearLayout>
 
             </LinearLayout>
 
@@ -256,7 +322,8 @@
             android:text="Add More"
             android:textColor="@color/white"
             android:textSize="16sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:backgroundTint="@color/purple_primary" />
 
         <Button
             android:id="@+id/btn_done"
@@ -265,10 +332,10 @@
             android:layout_weight="1"
             android:layout_marginStart="12dp"
             android:text="Done"
-            android:textColor="@color/black"
+            android:textColor="@color/white"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:backgroundTint="@android:color/darker_gray" />
+            android:backgroundTint="@color/purple_primary" />
 
     </LinearLayout>
 

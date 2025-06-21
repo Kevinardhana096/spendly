@@ -184,8 +184,8 @@ public class SetBudgetActivity extends AppCompatActivity {
         selectedCategoryName.setText(category);
 
         // Update category icon based on selection
-        int iconRes = R.drawable.ic_food;
-        int colorRes = R.color.orange_primary;
+        int iconRes = R.drawable.ic_other; // Default for new categories
+        int colorRes = R.color.purple_primary; // Default color
 
         switch (category) {
             case "Food & Beverages":
@@ -206,6 +206,11 @@ public class SetBudgetActivity extends AppCompatActivity {
                 break;
             case "Bills & Utilities":
                 iconRes = R.drawable.ic_bills;
+                colorRes = R.color.purple_primary;
+                break;
+            default:
+                // For new custom categories
+                iconRes = R.drawable.ic_other;
                 colorRes = R.color.purple_primary;
                 break;
         }
@@ -295,16 +300,68 @@ public class SetBudgetActivity extends AppCompatActivity {
     }
 
     private void addNewCategory(String categoryName) {
-        // Add new category to database/shared preferences
-        // Update spinner with new category
-        String[] currentCategories = {"Food & Beverages", "Transportation", "Shopping", "Health and Sport", categoryName};
+        // Update spinner with new category (for backward compatibility)
+        String[] currentCategories = {"Food & Beverages", "Transportation", "Shopping", "Health and Sport", "Bills & Utilities", categoryName};
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, currentCategories);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCategory.setAdapter(adapter);
 
-        // Select the new category
+        // Select the new category immediately
         spinnerCategory.setSelection(currentCategories.length - 1);
-        selectedCategory = categoryName;
+        selectCategory(categoryName); // This will update the selected category display
+
+        // Show message that category was added and selected
+        Toast.makeText(this, "New category '" + categoryName + "' added and selected", Toast.LENGTH_SHORT).show();
+    }
+    private void addCategoryToDropdown(String categoryName) {
+        // Create new category item layout
+        LinearLayout newCategoryItem = new LinearLayout(this);
+        newCategoryItem.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                (int) getResources().getDimension(R.dimen.category_item_height) // or use 48dp in pixels
+        ));
+        newCategoryItem.setOrientation(LinearLayout.HORIZONTAL);
+        newCategoryItem.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        // Set padding
+        int padding = (int) getResources().getDimension(R.dimen.category_item_padding); // or use 16dp in pixels
+        newCategoryItem.setPadding(padding, 0, padding, 0);
+
+        // Set background
+        newCategoryItem.setBackgroundResource(R.drawable.selectable_item_background);
+        newCategoryItem.setClickable(true);
+        newCategoryItem.setFocusable(true);
+
+        // Create icon
+        ImageView icon = new ImageView(this);
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(
+                (int) getResources().getDimension(R.dimen.category_icon_size), // 20dp
+                (int) getResources().getDimension(R.dimen.category_icon_size)  // 20dp
+        );
+        iconParams.setMarginEnd((int) getResources().getDimension(R.dimen.category_icon_margin)); // 12dp
+        icon.setLayoutParams(iconParams);
+        icon.setImageResource(R.drawable.ic_other); // Default icon for new categories
+        icon.setColorFilter(getResources().getColor(R.color.purple_primary));
+
+        // Create text
+        TextView text = new TextView(this);
+        text.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        ));
+        text.setText(categoryName);
+        text.setTextSize(14);
+        text.setTextColor(getResources().getColor(R.color.black));
+
+        // Add views to layout
+        newCategoryItem.addView(icon);
+        newCategoryItem.addView(text);
+
+        // Set click listener
+        newCategoryItem.setOnClickListener(v -> selectCategory(categoryName));
+
+        // Add to categories list
+        categoriesList.addView(newCategoryItem);
     }
 
     private void saveBudget() {

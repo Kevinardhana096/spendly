@@ -39,4 +39,10 @@
     <color name="illustration_border">#D1D5DB</color>
     <color name="character_skin">#FBBF24</color>
     <color name="divider_gray">#E5E7EB</color>
+
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="light_gray">#F5F5F5</color>
+    <color name="gray">#BDBDBD</color>
+    <color name="light_blue">#E3F2FD</color>
 </resources>

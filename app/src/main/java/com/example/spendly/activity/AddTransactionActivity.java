@@ -2,6 +2,7 @@ package com.example.spendly.activity;
 
 import android.app.DatePickerDialog;
 import android.app.Dialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
@@ -12,6 +13,7 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -50,7 +52,7 @@ public class AddTransactionActivity extends AppCompatActivity {
     private Button btnAddMore, btnDone;
 
     // Data variables
-    private String selectedCategory = "Food & Beverages"; // Default
+    private String selectedCategory = "General"; // Default fallback category
     private String transactionType = "expense"; // Default
     private Date selectedDate = new Date(); // Default to today
 
@@ -58,6 +60,15 @@ public class AddTransactionActivity extends AppCompatActivity {
     private List<BudgetCategory> budgetCategories = new ArrayList<>();
     private RecyclerView budgetCategoriesRecyclerView;
     private BudgetCategoryAdapter budgetCategoryAdapter;
+
+    // Category section views
+    private LinearLayout categoriesContainer;
+    private View emptyStateView;
+    private TextView tvEmptyStateTitle, tvEmptyStateSubtitle;
+    private Button btnSetupBudget;
+
+    // Budget state
+    private boolean hasBudgetCategories = false;
 
     // Repositories
     private TransactionRepository transactionRepository;
@@ -76,6 +87,7 @@ public class AddTransactionActivity extends AppCompatActivity {
     private ImageView btnDelete, btnCancel;
     private StringBuilder enteredPin = new StringBuilder();
     private boolean isPinRequired = true;
+    private TextView tvPinTitle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -123,46 +135,64 @@ public class AddTransactionActivity extends AppCompatActivity {
 
                         @Override
                         public void onError(Exception e) {
-                            // Use default categories if error
+                            // Show empty state if error loading categories
                             Log.e(TAG, "Error loading budget categories: " + e.getMessage());
-                            Toast.makeText(AddTransactionActivity.this,
-                                "Failed to load budget categories. Using default categories.",
-                                Toast.LENGTH_SHORT).show();
+                            showEmptyState();
                         }
                     });
                 } else {
-                    Log.i(TAG, "No budget categories found, using default categories");
-                    // Add some default categories
-                    addDefaultCategories();
+                    Log.i(TAG, "No budget categories found, showing empty state");
+                    showEmptyState();
                 }
             }
 
             @Override
             public void onError(Exception e) {
                 Log.e(TAG, "Error checking budget categories: " + e.getMessage());
-                addDefaultCategories();
+                showEmptyState();
             }
         });
     }
 
     /**
-     * Add default budget categories if none exist
+     * Show empty state when no budget categories are available
      */
-    private void addDefaultCategories() {
-        budgetCategories.clear();
+    private void showEmptyState() {
+        runOnUiThread(() -> {
+            hasBudgetCategories = false;
 
-        // Add default categories
-        budgetCategories.add(new BudgetCategory("Food & Beverages", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Transport", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Shopping", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Bills & Utilities", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Health", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Entertainment", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Education", "", 0, 0, "0", "0", new Date().toString()));
-        budgetCategories.add(new BudgetCategory("Other", "", 0, 0, "0", "0", new Date().toString()));
+            // Hide categories container
+            if (categoriesContainer != null) {
+                categoriesContainer.setVisibility(View.GONE);
+            }
 
-        // Setup the RecyclerView with default categories
-        setupBudgetCategoriesRecyclerView();
+            // Show empty state
+            if (emptyStateView != null) {
+                emptyStateView.setVisibility(View.VISIBLE);
+            }
+
+            // Set default category for transactions without budget
+            selectedCategory = "General";
+        });
+    }
+
+    /**
+     * Show budget categories section
+     */
+    private void showBudgetCategories() {
+        runOnUiThread(() -> {
+            hasBudgetCategories = true;
+
+            // Show categories container
+            if (categoriesContainer != null) {
+                categoriesContainer.setVisibility(View.VISIBLE);
+            }
+
+            // Hide empty state
+            if (emptyStateView != null) {
+                emptyStateView.setVisibility(View.GONE);
+            }
+        });
     }
 
     private void initViews() {
@@ -175,8 +205,23 @@ public class AddTransactionActivity extends AppCompatActivity {
         btnAddMore = findViewById(R.id.btn_add_more);
         btnDone = findViewById(R.id.btn_done);
 
+        // Initialize category section views
+        categoriesContainer = findViewById(R.id.categories_container);
+        emptyStateView = findViewById(R.id.empty_state_view);
+        tvEmptyStateTitle = findViewById(R.id.tv_empty_state_title);
+        tvEmptyStateSubtitle = findViewById(R.id.tv_empty_state_subtitle);
+        btnSetupBudget = findViewById(R.id.btn_setup_budget);
+
         // Set initial date display
         tvDateSelected.setText(dateFormatter.format(selectedDate));
+
+        // Initially hide both sections until we know the budget state
+        if (categoriesContainer != null) {
+            categoriesContainer.setVisibility(View.GONE);
+        }
+        if (emptyStateView != null) {
+            emptyStateView.setVisibility(View.GONE);
+        }
     }
 
     private void setupClickListeners() {
@@ -198,6 +243,30 @@ public class AddTransactionActivity extends AppCompatActivity {
             // Save and finish
             saveTransaction(false);
         });
+
+        // Setup budget button click
+        if (btnSetupBudget != null) {
+            btnSetupBudget.setOnClickListener(v -> {
+                // Navigate to budget setup activity
+                // Ganti dengan activity yang sudah ada atau buat placeholder
+                Toast.makeText(AddTransactionActivity.this,
+                        "Budget setup will be implemented soon",
+                        Toast.LENGTH_SHORT).show();
+
+                // Atau jika Anda punya activity lain untuk budget:
+                // Intent intent = new Intent(AddTransactionActivity.this, MainActivity.class);
+                // startActivityForResult(intent, 100);
+            });
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 100 && resultCode == RESULT_OK) {
+            // Refresh budget categories after setup
+            loadBudgetCategories();
+        }
     }
 
     private void setupAmountFormatting() {
@@ -299,27 +368,40 @@ public class AddTransactionActivity extends AppCompatActivity {
     private void saveTransaction(boolean addMore) {
         String amountText = etAmount.getText().toString().trim();
 
+        // Validate amount
         if (amountText.isEmpty()) {
-            Toast.makeText(this, "Please enter amount", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (selectedCategory == null || selectedCategory.isEmpty()) {
-            Toast.makeText(this, "Please select a category", Toast.LENGTH_SHORT).show();
+            etAmount.setError("Please enter amount");
+            etAmount.requestFocus();
             return;
         }
 
         try {
-            // Parse amount from formatted string - just remove all non-numeric chars
+            // Parse amount from formatted string
             String cleanString = amountText.replaceAll("[^0-9]", "");
+            if (cleanString.isEmpty()) {
+                etAmount.setError("Please enter a valid amount");
+                etAmount.requestFocus();
+                return;
+            }
+
             double amount = Double.parseDouble(cleanString);
 
-            // Create transaction object without account type
+            // Validate minimum amount
+            if (amount <= 0) {
+                etAmount.setError("Amount must be greater than 0");
+                etAmount.requestFocus();
+                return;
+            }
+
+            // Use selected category or default if no budget is set
+            String categoryToUse = hasBudgetCategories ? selectedCategory : "General";
+
+            // Create transaction object
             Transaction transaction = new Transaction(
                     FirebaseAuth.getInstance().getUid(),
                     amount,
-                    selectedCategory,
-                    "", // Empty account type since we removed account selection
+                    categoryToUse,
+                    "", // Empty account type
                     selectedDate,
                     transactionType
             );
@@ -328,16 +410,23 @@ public class AddTransactionActivity extends AppCompatActivity {
             String formattedAmount = currencyFormatter.format(amount);
             transaction.setFormattedAmount(formattedAmount);
 
-            // Check if PIN verification is required before saving the transaction
-            if (isPinRequired) {
+            // Check if PIN is required
+            SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+            boolean isPinRequired = prefs.getBoolean("pin_set", false);
+            String savedPin = prefs.getString("user_pin", "");
+
+            if (isPinRequired && !savedPin.isEmpty()) {
+                // Show PIN verification dialog
                 showPinVerificationDialog(transaction, addMore);
             } else {
-                // If PIN is not required, save transaction directly
+                // No PIN required, save directly
                 processSaveTransaction(transaction, addMore);
             }
 
         } catch (NumberFormatException e) {
-            Toast.makeText(this, "Invalid amount format", Toast.LENGTH_SHORT).show();
+            etAmount.setError("Invalid amount format");
+            etAmount.requestFocus();
+            Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -375,25 +464,56 @@ public class AddTransactionActivity extends AppCompatActivity {
         btnDelete = pinVerificationDialog.findViewById(R.id.btn_delete);
         btnCancel = pinVerificationDialog.findViewById(R.id.btn_cancel);
 
+        // Initialize and set the title for transaction verification
+        tvPinTitle = pinVerificationDialog.findViewById(R.id.tv_pin_title);
+        if (tvPinTitle != null) {
+            tvPinTitle.setText("Verify PIN for Transaction");
+        }
+
+        // Initialize and set subtitle for transaction info
+        TextView tvPinSubtitle = pinVerificationDialog.findViewById(R.id.tv_pin_subtitle);
+        if (tvPinSubtitle != null) {
+            String transactionTypeText = "expense".equals(transaction.getType()) ? "expense" : "income";
+            String amountText = transaction.getFormattedAmount();
+            if (amountText == null || amountText.isEmpty()) {
+                // Format the amount if it's not already formatted
+                NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
+                amountText = formatter.format(transaction.getAmount());
+            }
+
+            String message = String.format("Confirm %s transaction of %s for %s",
+                    transactionTypeText,
+                    amountText,
+                    transaction.getCategory());
+            tvPinSubtitle.setText(message);
+        }
+
         // Set up click listeners for number buttons
         for (int i = 0; i < numberButtons.length; i++) {
-            final int number = i;
-            numberButtons[i].setOnClickListener(v -> onPinNumberClicked(number, transaction, addMore));
+            if (numberButtons[i] != null) {
+                final int number = i;
+                numberButtons[i].setOnClickListener(v -> onPinNumberClicked(number, transaction, addMore));
+            }
         }
 
         // Set up delete button
-        btnDelete.setOnClickListener(v -> {
-            if (enteredPin.length() > 0) {
-                enteredPin.deleteCharAt(enteredPin.length() - 1);
-                updatePinDots();
-            }
-        });
+        if (btnDelete != null) {
+            btnDelete.setOnClickListener(v -> {
+                if (enteredPin.length() > 0) {
+                    enteredPin.deleteCharAt(enteredPin.length() - 1);
+                    updatePinDots();
+                }
+            });
+        }
 
         // Set up cancel button
-        btnCancel.setOnClickListener(v -> {
-            enteredPin.setLength(0);
-            pinVerificationDialog.dismiss();
-        });
+        if (btnCancel != null) {
+            btnCancel.setOnClickListener(v -> {
+                enteredPin.setLength(0);
+                pinVerificationDialog.dismiss();
+                Toast.makeText(AddTransactionActivity.this, "Transaction cancelled", Toast.LENGTH_SHORT).show();
+            });
+        }
 
         // Reset pin entry
         enteredPin.setLength(0);
@@ -412,7 +532,10 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             // Automatically verify when 6 digits are entered
             if (enteredPin.length() == 6) {
-                verifyPin(transaction, addMore);
+                // Add a small delay for better UX
+                new android.os.Handler().postDelayed(() -> {
+                    verifyPin(transaction, addMore);
+                }, 200);
             }
         }
     }
@@ -422,10 +545,29 @@ public class AddTransactionActivity extends AppCompatActivity {
      */
     private void updatePinDots() {
         for (int i = 0; i < pinDots.length; i++) {
-            if (i < enteredPin.length()) {
-                pinDots[i].setBackgroundResource(R.drawable.pin_dot_filled);
-            } else {
-                pinDots[i].setBackgroundResource(R.drawable.pin_dot_empty);
+            if (pinDots[i] != null) {
+                if (i < enteredPin.length()) {
+                    pinDots[i].setBackgroundResource(R.drawable.pin_dot_filled);
+                    // Fix animation with proper final variable
+                    final View currentDot = pinDots[i];
+                    currentDot.animate()
+                            .scaleX(1.2f)
+                            .scaleY(1.2f)
+                            .setDuration(100)
+                            .withEndAction(() -> {
+                                if (currentDot != null) {
+                                    currentDot.animate()
+                                            .scaleX(1f)
+                                            .scaleY(1f)
+                                            .setDuration(100);
+                                }
+                            });
+                } else {
+                    pinDots[i].setBackgroundResource(R.drawable.pin_dot_empty);
+                    // Reset scale for empty dots
+                    pinDots[i].setScaleX(1f);
+                    pinDots[i].setScaleY(1f);
+                }
             }
         }
     }
@@ -437,25 +579,56 @@ public class AddTransactionActivity extends AppCompatActivity {
         String pin = enteredPin.toString();
         String savedPin = getSavedPinHash();
 
-        // If no PIN is saved yet, default to allow transaction
+        // If no PIN is saved yet, show error
         if (savedPin.isEmpty()) {
+            Toast.makeText(this, "No PIN is set. Please set a PIN first.", Toast.LENGTH_LONG).show();
             enteredPin.setLength(0);
             pinVerificationDialog.dismiss();
-            processSaveTransaction(transaction, addMore);
+
+            // Redirect to PIN setup
+            Intent pinIntent = new Intent(this, SetPinCodeActivity.class);
+            pinIntent.putExtra("requirePin", true);
+            startActivity(pinIntent);
             return;
         }
 
-        // Use the verification method from SetPinCodeActivity
+        // Verify the PIN using the method from SetPinCodeActivity
         boolean isCorrect = SetPinCodeActivity.verifyPin(pin, savedPin);
 
         if (isCorrect) {
             // PIN is correct, proceed with saving transaction
             enteredPin.setLength(0);
             pinVerificationDialog.dismiss();
+
+            // Show success message
+            Toast.makeText(this, "PIN verified successfully", Toast.LENGTH_SHORT).show();
+
+            // Proceed with transaction
             processSaveTransaction(transaction, addMore);
         } else {
             // PIN is incorrect, show error and clear entry
             Toast.makeText(this, "Incorrect PIN. Please try again.", Toast.LENGTH_SHORT).show();
+
+            // Add vibration feedback with proper API handling
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    android.os.VibrationEffect effect = android.os.VibrationEffect.createOneShot(300, android.os.VibrationEffect.DEFAULT_AMPLITUDE);
+                    android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+                    if (vibrator != null && vibrator.hasVibrator()) {
+                        vibrator.vibrate(effect);
+                    }
+                } else {
+                    @SuppressWarnings("deprecation")
+                    android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+                    if (vibrator != null && vibrator.hasVibrator()) {
+                        vibrator.vibrate(300);
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Vibration not available: " + e.getMessage());
+            }
+
+            // Clear PIN entry and allow retry
             enteredPin.setLength(0);
             updatePinDots();
         }
@@ -473,7 +646,7 @@ public class AddTransactionActivity extends AppCompatActivity {
      * Process saving the transaction after PIN verification
      */
     private void processSaveTransaction(Transaction transaction, boolean addMore) {
-        // Save transaction and update budget
+        // Save transaction and update budget (only if budget exists)
         transactionRepository.saveTransaction(transaction, new TransactionRepository.TransactionCallback() {
             @Override
             public void onSuccess(Map<String, Object> data) {
@@ -481,45 +654,41 @@ public class AddTransactionActivity extends AppCompatActivity {
                 updateUserBalance(transaction, new TransactionRepository.TransactionCallback() {
                     @Override
                     public void onSuccess(Map<String, Object> data) {
-                        // Now update the budget for this transaction
-                        transactionRepository.updateBudgetForTransaction(
-                                transaction,
-                                budgetRepository,
-                                new TransactionRepository.TransactionCallback() {
-                                    @Override
-                                    public void onSuccess(Map<String, Object> data) {
-                                        runOnUiThread(() -> {
-                                            Toast.makeText(AddTransactionActivity.this,
-                                                    "Transaction saved and budget updated",
-                                                    Toast.LENGTH_SHORT).show();
+                        // Only update budget if budget categories exist
+                        if (hasBudgetCategories) {
+                            transactionRepository.updateBudgetForTransaction(
+                                    transaction,
+                                    budgetRepository,
+                                    new TransactionRepository.TransactionCallback() {
+                                        @Override
+                                        public void onSuccess(Map<String, Object> data) {
+                                            runOnUiThread(() -> {
+                                                Toast.makeText(AddTransactionActivity.this,
+                                                        "Transaction saved and budget updated",
+                                                        Toast.LENGTH_SHORT).show();
+                                                handleTransactionSaveComplete(addMore);
+                                            });
+                                        }
 
-                                            if (!addMore) {
-                                                finish();
-                                            } else {
-                                                // Clear form for next transaction
-                                                etAmount.setText("");
-                                                // Reset to default date (today)
-                                                selectedDate = new Date();
-                                                tvDateSelected.setText(dateFormatter.format(selectedDate));
-                                                // Reset category selection
-                                                selectedCategory = "Food & Beverages";
-                                            }
-                                        });
-                                    }
-
-                                    @Override
-                                    public void onError(Exception e) {
-                                        runOnUiThread(() -> {
-                                            Toast.makeText(AddTransactionActivity.this,
-                                                    "Transaction saved but budget update failed",
-                                                    Toast.LENGTH_SHORT).show();
-
-                                            if (!addMore) {
-                                                finish();
-                                            }
-                                        });
-                                    }
-                                });
+                                        @Override
+                                        public void onError(Exception e) {
+                                            runOnUiThread(() -> {
+                                                Toast.makeText(AddTransactionActivity.this,
+                                                        "Transaction saved but budget update failed",
+                                                        Toast.LENGTH_SHORT).show();
+                                                handleTransactionSaveComplete(addMore);
+                                            });
+                                        }
+                                    });
+                        } else {
+                            // No budget to update, just show success
+                            runOnUiThread(() -> {
+                                Toast.makeText(AddTransactionActivity.this,
+                                        "Transaction saved successfully",
+                                        Toast.LENGTH_SHORT).show();
+                                handleTransactionSaveComplete(addMore);
+                            });
+                        }
                     }
 
                     @Override
@@ -528,9 +697,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                             Toast.makeText(AddTransactionActivity.this,
                                     "Transaction saved but balance update failed: " + e.getMessage(),
                                     Toast.LENGTH_SHORT).show();
-                            if (!addMore) {
-                                finish();
-                            }
+                            handleTransactionSaveComplete(addMore);
                         });
                     }
                 });
@@ -545,6 +712,30 @@ public class AddTransactionActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    /**
+     * Handle completion of transaction save
+     */
+    private void handleTransactionSaveComplete(boolean addMore) {
+        if (!addMore) {
+            finish();
+        } else {
+            // Clear form for next transaction
+            etAmount.setText("");
+            // Reset to default date (today)
+            selectedDate = new Date();
+            tvDateSelected.setText(dateFormatter.format(selectedDate));
+            // Reset category selection if budget exists
+            if (hasBudgetCategories && !budgetCategories.isEmpty()) {
+                selectedCategory = budgetCategories.get(0).getCategoryName();
+                if (budgetCategoryAdapter != null) {
+                    budgetCategoryAdapter.resetSelection();
+                }
+            } else {
+                selectedCategory = "General";
+            }
+        }
     }
 
     /**
@@ -606,8 +797,8 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         // Skip if no categories or contains only offline flag
         if (categoriesData.isEmpty() ||
-           (categoriesData.size() == 1 && categoriesData.containsKey("offline_only"))) {
-            addDefaultCategories();
+                (categoriesData.size() == 1 && categoriesData.containsKey("offline_only"))) {
+            showEmptyState();
             return;
         }
 
@@ -654,13 +845,13 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
 
             BudgetCategory category = new BudgetCategory(
-                categoryName,
-                "", // Will set icon based on name in the adapter
-                amount,
-                spent,
-                formattedAmount,
-                formattedSpent,
-                dateAdded
+                    categoryName,
+                    "", // Will set icon based on name in the adapter
+                    amount,
+                    spent,
+                    formattedAmount,
+                    formattedSpent,
+                    dateAdded
             );
 
             budgetCategories.add(category);
@@ -669,8 +860,11 @@ public class AddTransactionActivity extends AppCompatActivity {
         // If we have budget categories, set up the recycler view
         if (!budgetCategories.isEmpty()) {
             setupBudgetCategoriesRecyclerView();
+            showBudgetCategories();
+            // Set first category as default selected
+            selectedCategory = budgetCategories.get(0).getCategoryName();
         } else {
-            addDefaultCategories();
+            showEmptyState();
         }
     }
 
@@ -680,39 +874,36 @@ public class AddTransactionActivity extends AppCompatActivity {
     private void setupBudgetCategoriesRecyclerView() {
         // Find or create the RecyclerView for budget categories
         if (budgetCategoriesRecyclerView == null) {
-            android.widget.LinearLayout categoriesContainer = findViewById(R.id.categories_container);
+            // Create RecyclerView programmatically
+            budgetCategoriesRecyclerView = new RecyclerView(this);
+            budgetCategoriesRecyclerView.setId(View.generateViewId()); // Generate unique ID
 
-            // First check if there is already a budget categories recycler view
-            budgetCategoriesRecyclerView = findViewById(R.id.budget_categories_recycler_view);
-
-            if (budgetCategoriesRecyclerView == null) {
-                // Inflate the budget categories section
-                View budgetCategoriesSection = getLayoutInflater().inflate(
-                        R.layout.layout_budget_categories,
-                        categoriesContainer,
-                        true);
-
-                budgetCategoriesRecyclerView = budgetCategoriesSection.findViewById(R.id.budget_categories_recycler_view);
-            }
+            // Set layout params
+            LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+            );
+            budgetCategoriesRecyclerView.setLayoutParams(layoutParams);
 
             // Use GridLayoutManager with 3 columns
             int numberOfColumns = 3;
             budgetCategoriesRecyclerView.setLayoutManager(new GridLayoutManager(
                     this, numberOfColumns));
+
+            // Add to categories container (now it's LinearLayout, so addView works)
+            if (categoriesContainer != null) {
+                categoriesContainer.addView(budgetCategoriesRecyclerView);
+            }
         }
 
-        // Create new adapter with our budget categories
-        budgetCategoryAdapter = new BudgetCategoryAdapter(budgetCategories,
-            categoryName -> {
-                selectedCategory = categoryName;
-                Toast.makeText(this, categoryName + " selected", Toast.LENGTH_SHORT).show();
-            });
-        budgetCategoriesRecyclerView.setAdapter(budgetCategoryAdapter);
-
-        // Make sure the section is visible
-        View budgetCategoriesSection = findViewById(R.id.budget_categories_section);
-        if (budgetCategoriesSection != null) {
-            budgetCategoriesSection.setVisibility(View.VISIBLE);
+        if (budgetCategoriesRecyclerView != null) {
+            // Create new adapter with our budget categories
+            budgetCategoryAdapter = new BudgetCategoryAdapter(budgetCategories,
+                    categoryName -> {
+                        selectedCategory = categoryName;
+                        Toast.makeText(this, categoryName + " selected", Toast.LENGTH_SHORT).show();
+                    });
+            budgetCategoriesRecyclerView.setAdapter(budgetCategoryAdapter);
         }
     }
 
@@ -723,11 +914,16 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         private List<BudgetCategory> categories;
         private OnCategorySelectedListener listener;
-        private int selectedPosition = -1;
+        private int selectedPosition = 0; // Default first item selected
 
         public BudgetCategoryAdapter(List<BudgetCategory> categories, OnCategorySelectedListener listener) {
             this.categories = categories;
             this.listener = listener;
+        }
+
+        public void resetSelection() {
+            selectedPosition = 0;
+            notifyDataSetChanged();
         }
 
         @Override
@@ -795,7 +991,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                     iconRes = R.drawable.ic_shopping;
                     colorRes = R.color.pink_primary;
                 } else if (categoryName.contains("Bill") || categoryName.contains("bill") ||
-                           categoryName.contains("Util") || categoryName.contains("util")) {
+                        categoryName.contains("Util") || categoryName.contains("util")) {
                     iconRes = R.drawable.ic_bills;
                     colorRes = R.color.purple_primary;
                 } else if (categoryName.contains("Health") || categoryName.contains("health")) {
@@ -809,6 +1005,33 @@ public class AddTransactionActivity extends AppCompatActivity {
                 imageView.setImageResource(iconRes);
                 imageView.setColorFilter(ContextCompat.getColor(AddTransactionActivity.this, colorRes));
             }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (pinVerificationDialog != null && pinVerificationDialog.isShowing()) {
+            pinVerificationDialog.dismiss();
+        }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (pinVerificationDialog != null && pinVerificationDialog.isShowing()) {
+            // Show confirmation dialog before cancelling transaction
+            new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Cancel Transaction")
+                    .setMessage("Are you sure you want to cancel this transaction?")
+                    .setPositiveButton("Yes", (dialog, which) -> {
+                        enteredPin.setLength(0);
+                        pinVerificationDialog.dismiss();
+                        super.onBackPressed();
+                    })
+                    .setNegativeButton("No", null)
+                    .show();
+        } else {
+            super.onBackPressed();
         }
     }
 }
