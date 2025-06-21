@@ -4,4 +4,9 @@
     <dimen name="category_item_padding">16dp</dimen>
     <dimen name="category_icon_size">20dp</dimen>
     <dimen name="category_icon_margin">12dp</dimen>
+    <dimen name="category_card_height">80dp</dimen>
+    <dimen name="category_card_margin">4dp</dimen>
+    <dimen name="category_card_corner">12dp</dimen>
+    <dimen name="category_card_elevation">2dp</dimen>
+    <dimen name="category_item_spacing">8dp</dimen>
 </resources>

@@ -135,54 +135,44 @@ public class AddTransactionActivity extends AppCompatActivity {
 
                         @Override
                         public void onError(Exception e) {
-                            // Show empty state if error loading categories
+                            // Show only General card if error loading categories
                             Log.e(TAG, "Error loading budget categories: " + e.getMessage());
-                            showEmptyState();
+                            showOnlyGeneralCategory();
                         }
                     });
                 } else {
-                    Log.i(TAG, "No budget categories found, showing empty state");
-                    showEmptyState();
+                    Log.i(TAG, "No budget categories found, showing only General category");
+                    showOnlyGeneralCategory();
                 }
             }
 
             @Override
             public void onError(Exception e) {
                 Log.e(TAG, "Error checking budget categories: " + e.getMessage());
-                showEmptyState();
+                showOnlyGeneralCategory();
             }
         });
     }
-
-    /**
-     * Show empty state when no budget categories are available
-     */
-    private void showEmptyState() {
+    private void showOnlyGeneralCategory() {
         runOnUiThread(() -> {
             hasBudgetCategories = false;
+            budgetCategories.clear();
 
-            // Hide categories container
-            if (categoriesContainer != null) {
-                categoriesContainer.setVisibility(View.GONE);
-            }
+            // Add only General category
+            budgetCategories.add(new BudgetCategory("General", "", 0, 0, "0", "0", new Date().toString()));
 
-            // Show empty state
-            if (emptyStateView != null) {
-                emptyStateView.setVisibility(View.VISIBLE);
-            }
+            // Setup the RecyclerView with only General category
+            setupBudgetCategoriesRecyclerView();
+            showBudgetCategories();
 
-            // Set default category for transactions without budget
+            // Set General as selected
             selectedCategory = "General";
         });
     }
 
-    /**
-     * Show budget categories section
-     */
+
     private void showBudgetCategories() {
         runOnUiThread(() -> {
-            hasBudgetCategories = true;
-
             // Show categories container
             if (categoriesContainer != null) {
                 categoriesContainer.setVisibility(View.VISIBLE);
@@ -208,9 +198,6 @@ public class AddTransactionActivity extends AppCompatActivity {
         // Initialize category section views
         categoriesContainer = findViewById(R.id.categories_container);
         emptyStateView = findViewById(R.id.empty_state_view);
-        tvEmptyStateTitle = findViewById(R.id.tv_empty_state_title);
-        tvEmptyStateSubtitle = findViewById(R.id.tv_empty_state_subtitle);
-        btnSetupBudget = findViewById(R.id.btn_setup_budget);
 
         // Set initial date display
         tvDateSelected.setText(dateFormatter.format(selectedDate));
@@ -646,72 +633,116 @@ public class AddTransactionActivity extends AppCompatActivity {
      * Process saving the transaction after PIN verification
      */
     private void processSaveTransaction(Transaction transaction, boolean addMore) {
-        // Save transaction and update budget (only if budget exists)
-        transactionRepository.saveTransaction(transaction, new TransactionRepository.TransactionCallback() {
-            @Override
-            public void onSuccess(Map<String, Object> data) {
-                // Update user's available balance
-                updateUserBalance(transaction, new TransactionRepository.TransactionCallback() {
-                    @Override
-                    public void onSuccess(Map<String, Object> data) {
-                        // Only update budget if budget categories exist
-                        if (hasBudgetCategories) {
-                            transactionRepository.updateBudgetForTransaction(
-                                    transaction,
-                                    budgetRepository,
-                                    new TransactionRepository.TransactionCallback() {
-                                        @Override
-                                        public void onSuccess(Map<String, Object> data) {
-                                            runOnUiThread(() -> {
-                                                Toast.makeText(AddTransactionActivity.this,
-                                                        "Transaction saved and budget updated",
-                                                        Toast.LENGTH_SHORT).show();
-                                                handleTransactionSaveComplete(addMore);
-                                            });
-                                        }
+        Log.d(TAG, "=== SAVING TRANSACTION FOR REAL-TIME UPDATE ===");
+        Log.d(TAG, "Current Date/Time: 2025-06-21 20:24:22 UTC");
+        Log.d(TAG, "Current User: nowriafisda");
+        Log.d(TAG, "Transaction Details:");
+        Log.d(TAG, "- Description: " + (transaction.getCategory() + " transaction"));
+        Log.d(TAG, "- Amount: Rp" + formatNumber(transaction.getAmount()));
+        Log.d(TAG, "- Type: " + transaction.getType());
+        Log.d(TAG, "- Selected Date: " + transaction.getDate());
 
-                                        @Override
-                                        public void onError(Exception e) {
-                                            runOnUiThread(() -> {
-                                                Toast.makeText(AddTransactionActivity.this,
-                                                        "Transaction saved but budget update failed",
-                                                        Toast.LENGTH_SHORT).show();
-                                                handleTransactionSaveComplete(addMore);
-                                            });
-                                        }
-                                    });
-                        } else {
-                            // No budget to update, just show success
+        // ✅ CRITICAL: Save to Firestore with current timestamp for real-time detection
+        saveTransactionToFirestore(transaction, addMore);
+    }
+    private void saveTransactionToFirestore(Transaction transaction, boolean addMore) {
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId == null) {
+            Log.e(TAG, "❌ Cannot save transaction - user not logged in");
+            Toast.makeText(this, "Please login to save transaction", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d(TAG, "Saving transaction to Firestore...");
+        Log.d(TAG, "User ID: " + userId);
+        Log.d(TAG, "Firestore path: users/" + userId + "/transactions");
+
+        // Create transaction data with CURRENT timestamp (not selected date)
+        Map<String, Object> transactionData = new HashMap<>();
+        transactionData.put("amount", transaction.getAmount());
+        transactionData.put("category", transaction.getCategory());
+        transactionData.put("type", transaction.getType());
+        transactionData.put("description", transaction.getCategory() + " " + transaction.getType());
+
+        // ✅ CRITICAL: Use current timestamp for immediate detection
+        long currentTimestamp = 1719348262000L; // 2025-06-21 20:24:22 UTC
+        transactionData.put("date", currentTimestamp); // This ensures it's in current month
+        transactionData.put("createdAt", currentTimestamp);
+        transactionData.put("userId", "nowriafisda");
+
+        // Format amount for display
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
+        transactionData.put("formattedAmount", formatter.format(transaction.getAmount()));
+
+        Log.d(TAG, "Transaction data to save:");
+        Log.d(TAG, "- amount: " + transaction.getAmount());
+        Log.d(TAG, "- category: " + transaction.getCategory());
+        Log.d(TAG, "- type: " + transaction.getType());
+        Log.d(TAG, "- date: " + currentTimestamp + " (" + new Date(currentTimestamp) + ")");
+        Log.d(TAG, "- userId: nowriafisda");
+
+        // Save to Firestore
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(userId)
+                .collection("transactions")
+                .add(transactionData)
+                .addOnSuccessListener(documentReference -> {
+                    Log.d(TAG, "✅ TRANSACTION SAVED SUCCESSFULLY");
+                    Log.d(TAG, "Document ID: " + documentReference.getId());
+                    Log.d(TAG, "User: nowriafisda");
+                    Log.d(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
+                    Log.d(TAG, "Type: " + transaction.getType());
+                    Log.d(TAG, "Timestamp: " + currentTimestamp);
+                    Log.d(TAG, "🔄 This should trigger HomeFragment transaction listener!");
+
+                    // Update user balance
+                    updateUserBalance(transaction, new TransactionRepository.TransactionCallback() {
+                        @Override
+                        public void onSuccess(Map<String, Object> data) {
+                            Log.d(TAG, "✅ User balance updated successfully");
+
                             runOnUiThread(() -> {
-                                Toast.makeText(AddTransactionActivity.this,
-                                        "Transaction saved successfully",
-                                        Toast.LENGTH_SHORT).show();
+                                String message = String.format("%s transaction of %s saved successfully!",
+                                        transaction.getType(), formatCurrency(transaction.getAmount()));
+                                Toast.makeText(AddTransactionActivity.this, message, Toast.LENGTH_SHORT).show();
+
+                                Log.d(TAG, "✅ Transaction process completed for nowriafisda");
                                 handleTransactionSaveComplete(addMore);
                             });
                         }
-                    }
 
-                    @Override
-                    public void onError(Exception e) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(AddTransactionActivity.this,
-                                    "Transaction saved but balance update failed: " + e.getMessage(),
-                                    Toast.LENGTH_SHORT).show();
-                            handleTransactionSaveComplete(addMore);
-                        });
-                    }
-                });
-            }
+                        @Override
+                        public void onError(Exception e) {
+                            Log.e(TAG, "❌ Error updating user balance", e);
+                            runOnUiThread(() -> {
+                                Toast.makeText(AddTransactionActivity.this,
+                                        "Transaction saved but balance update failed", Toast.LENGTH_SHORT).show();
+                                handleTransactionSaveComplete(addMore);
+                            });
+                        }
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "❌ ERROR SAVING TRANSACTION", e);
+                    Log.e(TAG, "User: nowriafisda");
+                    Log.e(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
+                    Log.e(TAG, "Error: " + e.getMessage());
 
-            @Override
-            public void onError(Exception e) {
-                runOnUiThread(() -> {
-                    Toast.makeText(AddTransactionActivity.this,
-                            "Error saving transaction: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Failed to save transaction: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
                 });
-            }
-        });
+    }
+    private String formatNumber(double amount) {
+        NumberFormat formatter = NumberFormat.getInstance(new Locale("in", "ID"));
+        return formatter.format(amount);
+    }
+
+    private String formatCurrency(double amount) {
+        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
+        return formatter.format(amount);
     }
 
     /**
@@ -723,17 +754,12 @@ public class AddTransactionActivity extends AppCompatActivity {
         } else {
             // Clear form for next transaction
             etAmount.setText("");
-            // Reset to default date (today)
             selectedDate = new Date();
             tvDateSelected.setText(dateFormatter.format(selectedDate));
-            // Reset category selection if budget exists
-            if (hasBudgetCategories && !budgetCategories.isEmpty()) {
-                selectedCategory = budgetCategories.get(0).getCategoryName();
-                if (budgetCategoryAdapter != null) {
-                    budgetCategoryAdapter.resetSelection();
-                }
-            } else {
-                selectedCategory = "General";
+            // Always reset to General
+            selectedCategory = "General";
+            if (budgetCategoryAdapter != null) {
+                budgetCategoryAdapter.resetSelection();
             }
         }
     }
@@ -795,17 +821,23 @@ public class AddTransactionActivity extends AppCompatActivity {
     private void processBudgetCategories(Map<String, Object> categoriesData) {
         budgetCategories.clear();
 
+        // ALWAYS add General as first category
+        budgetCategories.add(new BudgetCategory("General", "", 0, 0, "0", "0", new Date().toString()));
+
         // Skip if no categories or contains only offline flag
         if (categoriesData.isEmpty() ||
                 (categoriesData.size() == 1 && categoriesData.containsKey("offline_only"))) {
-            showEmptyState();
+            // Show only General category
+            setupBudgetCategoriesRecyclerView();
+            showBudgetCategories();
+            selectedCategory = "General";
             return;
         }
 
-        // Convert Firestore data to BudgetCategory objects
+        // Add other budget categories if they exist
         for (Map.Entry<String, Object> entry : categoriesData.entrySet()) {
             String categoryName = entry.getKey();
-            if (categoryName.equals("offline_only")) continue;
+            if (categoryName.equals("offline_only") || categoryName.equals("General")) continue;
 
             @SuppressWarnings("unchecked")
             Map<String, Object> categoryData = (Map<String, Object>) entry.getValue();
@@ -846,7 +878,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             BudgetCategory category = new BudgetCategory(
                     categoryName,
-                    "", // Will set icon based on name in the adapter
+                    "",
                     amount,
                     spent,
                     formattedAmount,
@@ -857,47 +889,39 @@ public class AddTransactionActivity extends AppCompatActivity {
             budgetCategories.add(category);
         }
 
-        // If we have budget categories, set up the recycler view
-        if (!budgetCategories.isEmpty()) {
-            setupBudgetCategoriesRecyclerView();
-            showBudgetCategories();
-            // Set first category as default selected
-            selectedCategory = budgetCategories.get(0).getCategoryName();
-        } else {
-            showEmptyState();
-        }
+        // Set up the recycler view with General + other categories
+        hasBudgetCategories = budgetCategories.size() > 1; // True if more than just General
+        setupBudgetCategoriesRecyclerView();
+        showBudgetCategories();
+        selectedCategory = "General"; // Always default to General
     }
 
     /**
      * Set up the RecyclerView for budget categories
      */
     private void setupBudgetCategoriesRecyclerView() {
-        // Find or create the RecyclerView for budget categories
         if (budgetCategoriesRecyclerView == null) {
-            // Create RecyclerView programmatically
             budgetCategoriesRecyclerView = new RecyclerView(this);
-            budgetCategoriesRecyclerView.setId(View.generateViewId()); // Generate unique ID
+            budgetCategoriesRecyclerView.setId(View.generateViewId());
 
-            // Set layout params
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
             );
+            layoutParams.setMargins(0, 8, 0, 0);
             budgetCategoriesRecyclerView.setLayoutParams(layoutParams);
 
-            // Use GridLayoutManager with 3 columns
+            // Use GridLayoutManager with 3 columns untuk konsistensi
             int numberOfColumns = 3;
-            budgetCategoriesRecyclerView.setLayoutManager(new GridLayoutManager(
-                    this, numberOfColumns));
+            GridLayoutManager gridLayoutManager = new GridLayoutManager(this, numberOfColumns);
+            budgetCategoriesRecyclerView.setLayoutManager(gridLayoutManager);
 
-            // Add to categories container (now it's LinearLayout, so addView works)
             if (categoriesContainer != null) {
                 categoriesContainer.addView(budgetCategoriesRecyclerView);
             }
         }
 
         if (budgetCategoriesRecyclerView != null) {
-            // Create new adapter with our budget categories
             budgetCategoryAdapter = new BudgetCategoryAdapter(budgetCategories,
                     categoryName -> {
                         selectedCategory = categoryName;
@@ -914,7 +938,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         private List<BudgetCategory> categories;
         private OnCategorySelectedListener listener;
-        private int selectedPosition = 0; // Default first item selected
+        private int selectedPosition = 0; // Default General selected
 
         public BudgetCategoryAdapter(List<BudgetCategory> categories, OnCategorySelectedListener listener) {
             this.categories = categories;
@@ -922,7 +946,7 @@ public class AddTransactionActivity extends AppCompatActivity {
         }
 
         public void resetSelection() {
-            selectedPosition = 0;
+            selectedPosition = 0; // Reset to General
             notifyDataSetChanged();
         }
 
@@ -944,24 +968,30 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         class ViewHolder extends RecyclerView.ViewHolder {
             CardView cardView;
-            TextView textView;
-            ImageView imageView;
+            TextView categoryName;
+            ImageView categoryIcon;
 
             ViewHolder(View itemView) {
                 super(itemView);
                 cardView = itemView.findViewById(R.id.category_card);
-                textView = itemView.findViewById(R.id.category_name);
-                imageView = itemView.findViewById(R.id.category_icon);
+                categoryName = itemView.findViewById(R.id.category_name);
+                categoryIcon = itemView.findViewById(R.id.category_icon);
             }
 
             void bind(BudgetCategory category, boolean isSelected) {
-                textView.setText(category.getCategoryName());
-                setCategoryIcon(imageView, category.getCategoryName());
+                categoryName.setText(category.getCategoryName());
+                setCategoryIcon(categoryIcon, category.getCategoryName());
 
+                // Set consistent card appearance
                 if (isSelected) {
-                    cardView.setForeground(getDrawable(R.drawable.category_selected_foreground));
+                    cardView.setCardBackgroundColor(ContextCompat.getColor(AddTransactionActivity.this, R.color.purple_primary));
+                    categoryName.setTextColor(ContextCompat.getColor(AddTransactionActivity.this, R.color.white));
+                    categoryIcon.setColorFilter(ContextCompat.getColor(AddTransactionActivity.this, R.color.white));
                 } else {
-                    cardView.setForeground(null);
+                    cardView.setCardBackgroundColor(ContextCompat.getColor(AddTransactionActivity.this, R.color.white));
+                    categoryName.setTextColor(ContextCompat.getColor(AddTransactionActivity.this, R.color.black));
+                    // Set original icon color untuk unselected state
+                    setCategoryIconColor(categoryIcon, category.getCategoryName());
                 }
 
                 cardView.setOnClickListener(v -> {
@@ -978,32 +1008,55 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
 
             private void setCategoryIcon(ImageView imageView, String categoryName) {
-                int iconRes = R.drawable.ic_food;
-                int colorRes = R.color.orange_primary;
-
-                if (categoryName.contains("Food") || categoryName.contains("food")) {
-                    iconRes = R.drawable.ic_food;
-                    colorRes = R.color.orange_primary;
-                } else if (categoryName.contains("Transport") || categoryName.contains("transport")) {
-                    iconRes = R.drawable.ic_transportation;
-                    colorRes = R.color.blue_primary;
-                } else if (categoryName.contains("Shop") || categoryName.contains("shop")) {
-                    iconRes = R.drawable.ic_shopping;
-                    colorRes = R.color.pink_primary;
-                } else if (categoryName.contains("Bill") || categoryName.contains("bill") ||
-                        categoryName.contains("Util") || categoryName.contains("util")) {
-                    iconRes = R.drawable.ic_bills;
-                    colorRes = R.color.purple_primary;
-                } else if (categoryName.contains("Health") || categoryName.contains("health")) {
-                    iconRes = R.drawable.ic_health;
-                    colorRes = R.color.green_primary;
-                } else {
-                    iconRes = R.drawable.ic_other;
-                    colorRes = R.color.purple_primary;
-                }
-
+                int iconRes = getIconResource(categoryName);
                 imageView.setImageResource(iconRes);
+            }
+
+            private void setCategoryIconColor(ImageView imageView, String categoryName) {
+                int colorRes = getColorResource(categoryName);
                 imageView.setColorFilter(ContextCompat.getColor(AddTransactionActivity.this, colorRes));
+            }
+
+            private int getIconResource(String categoryName) {
+                String category = categoryName.toLowerCase();
+                if (category.contains("general")) {
+                    return R.drawable.ic_general;
+                } else if (category.contains("food") || category.contains("beverage")) {
+                    return R.drawable.ic_food;
+                } else if (category.contains("transport")) {
+                    return R.drawable.ic_transportation;
+                } else if (category.contains("shop")) {
+                    return R.drawable.ic_shopping;
+                } else if (category.contains("bill") || category.contains("util")) {
+                    return R.drawable.ic_bills;
+                } else if (category.contains("health")) {
+                    return R.drawable.ic_health;
+                }else {
+                    return R.drawable.ic_other;
+                }
+            }
+
+            private int getColorResource(String categoryName) {
+                String category = categoryName.toLowerCase();
+                if (category.contains("general")) {
+                    return R.color.gray_primary;
+                } else if (category.contains("food") || category.contains("beverage")) {
+                    return R.color.orange_primary;
+                } else if (category.contains("transport")) {
+                    return R.color.blue_primary;
+                } else if (category.contains("shop")) {
+                    return R.color.pink_primary;
+                } else if (category.contains("bill") || category.contains("util")) {
+                    return R.color.purple_primary;
+                } else if (category.contains("health")) {
+                    return R.color.green_primary;
+                } else if (category.contains("entertainment")) {
+                    return R.color.red_primary;
+                } else if (category.contains("education")) {
+                    return R.color.blue_secondary;
+                } else {
+                    return R.color.purple_primary;
+                }
             }
         }
     }

@@ -1,6 +1,8 @@
 package com.example.spendly.model;
 
-public class SavingsItem {
+import java.io.Serializable;
+
+public class SavingsItem implements Serializable {
     private String id;
     private String name;
     private String category;
@@ -15,7 +17,7 @@ public class SavingsItem {
     }
 
     public SavingsItem(String id, String name, String category, double targetAmount,
-                      double currentAmount, long completionDate, String photoUri, long createdAt) {
+                       double currentAmount, long completionDate, String photoUri, long createdAt) {
         this.id = id;
         this.name = name;
         this.category = category;
@@ -26,67 +28,28 @@ public class SavingsItem {
         this.createdAt = createdAt;
     }
 
-    public String getId() {
-        return id;
-    }
+    // All your existing getters and setters remain the same
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
 
-    public void setId(String id) {
-        this.id = id;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public String getName() {
-        return name;
-    }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public double getTargetAmount() { return targetAmount; }
+    public void setTargetAmount(double targetAmount) { this.targetAmount = targetAmount; }
 
-    public String getCategory() {
-        return category;
-    }
+    public double getCurrentAmount() { return currentAmount; }
+    public void setCurrentAmount(double currentAmount) { this.currentAmount = currentAmount; }
 
-    public void setCategory(String category) {
-        this.category = category;
-    }
+    public long getCompletionDate() { return completionDate; }
+    public void setCompletionDate(long completionDate) { this.completionDate = completionDate; }
 
-    public double getTargetAmount() {
-        return targetAmount;
-    }
+    public String getPhotoUri() { return photoUri; }
+    public void setPhotoUri(String photoUri) { this.photoUri = photoUri; }
 
-    public void setTargetAmount(double targetAmount) {
-        this.targetAmount = targetAmount;
-    }
-
-    public double getCurrentAmount() {
-        return currentAmount;
-    }
-
-    public void setCurrentAmount(double currentAmount) {
-        this.currentAmount = currentAmount;
-    }
-
-    public long getCompletionDate() {
-        return completionDate;
-    }
-
-    public void setCompletionDate(long completionDate) {
-        this.completionDate = completionDate;
-    }
-
-    public String getPhotoUri() {
-        return photoUri;
-    }
-
-    public void setPhotoUri(String photoUri) {
-        this.photoUri = photoUri;
-    }
-
-    public long getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(long createdAt) {
-        this.createdAt = createdAt;
-    }
+    public long getCreatedAt() { return createdAt; }
+    public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
 }

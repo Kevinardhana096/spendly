@@ -241,59 +241,6 @@
                 </LinearLayout>
 
                 <!-- Empty State View (shown when no budget is set) -->
-                <LinearLayout
-                    android:id="@+id/empty_state_view"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="24dp"
-                    android:background="@drawable/empty_state_background"
-                    android:visibility="gone"
-                    android:layout_marginTop="8dp">
-
-                    <ImageView
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        android:layout_marginBottom="16dp"
-                        android:src="@drawable/ic_category_outline"
-                        app:tint="@color/text_gray" />
-
-                    <TextView
-                        android:id="@+id/tv_empty_state_title"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
-                        android:text="No Budget Categories"
-                        android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black"
-                        android:gravity="center" />
-
-                    <TextView
-                        android:id="@+id/tv_empty_state_subtitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:gravity="center"
-                        android:text="You can still add transactions.\nSet up budget categories for better tracking."
-                        android:textColor="@color/text_gray"
-                        android:textSize="14sp"
-                        android:lineSpacingExtra="2dp" />
-
-                    <Button
-                        android:id="@+id/btn_setup_budget"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:text="Setup Budget"
-                        android:textColor="@color/white"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:backgroundTint="@color/purple_primary"
-                        android:paddingStart="24dp"
-                        android:paddingEnd="24dp" />
-
-                </LinearLayout>
 
             </LinearLayout>
 

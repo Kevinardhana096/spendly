@@ -5,39 +5,56 @@
     android:layout_height="match_parent"
     android:background="@android:color/white">
 
+    <!-- Header with Back Button -->
     <RelativeLayout
         android:id="@+id/headerLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="24dp"
-        android:background="@android:color/white">
+        android:background="@android:color/white"
+        android:elevation="2dp">
 
         <ImageView
             android:id="@+id/backButton"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@drawable/ic_arrow_back_blue"
             android:layout_centerVertical="true"
             android:clickable="true"
-            android:focusable="true" />
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Your Target"
+            android:text="Savings Detail"
             android:textSize="18sp"
             android:textColor="#1F2937"
             android:fontFamily="sans-serif-medium"
             android:layout_centerInParent="true" />
 
+        <!-- Optional: Add more action buttons here -->
+        <ImageView
+            android:id="@+id/moreButton"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_more_vertical"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            android:visibility="gone" />
+
     </RelativeLayout>
 
-    <!-- ScrollView Content -->
+    <!-- Main Content - Full Height -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/headerLayout"
-        android:layout_above="@id/bottomNavigation">
+        android:layout_below="@id/headerLayout">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -46,19 +63,27 @@
             android:padding="24dp">
 
             <!-- Car Image -->
-            <ImageView
-                android:id="@+id/carImage"
+            <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:src="@drawable/placeholder_green"
-                android:scaleType="centerCrop"
-                android:layout_marginBottom="16dp" />
+                android:layout_height="220dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                android:layout_marginBottom="24dp">
+
+                <ImageView
+                    android:id="@+id/carImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/placeholder_green"
+                    android:scaleType="centerCrop" />
+
+            </androidx.cardview.widget.CardView>
 
             <!-- Car Title with Edit -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp">
+                android:layout_marginBottom="16dp">
 
                 <LinearLayout
                     android:layout_width="wrap_content"
@@ -70,113 +95,154 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Lamborghini Veneno"
-                        android:textSize="18sp"
+                        android:textSize="20sp"
                         android:textColor="#1F2937"
-                        android:fontFamily="sans-serif-medium" />
+                        android:fontFamily="sans-serif-bold" />
 
                     <TextView
                         android:id="@+id/targetDate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Target Goal 24 May 2026"
-                        android:textSize="12sp"
+                        android:textSize="14sp"
                         android:textColor="#6B7280"
-                        android:layout_marginTop="4dp" />
+                        android:layout_marginTop="4dp"
+                        android:drawableStart="@drawable/ic_calendar_small"
+                        android:drawablePadding="6dp"
+                        app:drawableTint="#6B7280" />
 
                 </LinearLayout>
 
-                <TextView
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/editButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:text="Edit"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:textColor="#6366F1"
-                    android:layout_alignParentRight="true"
+                    android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:padding="8dp" />
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:backgroundTint="@android:color/transparent" />
 
             </RelativeLayout>
 
-            <!-- Your Saving Amount -->
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Current Savings Amount Card -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Your Saving"
-                android:textSize="12sp"
-                android:textColor="#6B7280"
-                android:layout_marginBottom="4dp" />
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="#F8FAFC">
 
-            <TextView
-                android:id="@+id/currentAmount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Rp2.000"
-                android:textSize="24sp"
-                android:textColor="#1F2937"
-                android:fontFamily="sans-serif-bold"
-                android:layout_marginBottom="24dp" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Current Savings"
+                        android:textSize="14sp"
+                        android:textColor="#6B7280"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/currentAmount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rp2.150.000"
+                        android:textSize="28sp"
+                        android:textColor="#1F2937"
+                        android:fontFamily="sans-serif-bold" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
 
             <!-- Progress Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Needs to be saved"
-                    android:textSize="14sp"
-                    android:textColor="#6B7280" />
-
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <TextView
-                    android:id="@+id/needsAmount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Rp59.999.998.000"
-                    android:textSize="14sp"
-                    android:textColor="#1F2937"
-                    android:fontFamily="sans-serif-medium" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:layout_marginBottom="24dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Target"
-                    android:textSize="14sp"
-                    android:textColor="#6B7280" />
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="8dp">
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Still needed"
+                        android:textSize="14sp"
+                        android:textColor="#6B7280" />
 
-                <TextView
-                    android:id="@+id/targetAmount"
-                    android:layout_width="wrap_content"
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:id="@+id/needsAmount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rp59.997.850.000"
+                        android:textSize="14sp"
+                        android:textColor="#1F2937"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Rp60.000.000.000"
-                    android:textSize="14sp"
-                    android:textColor="#1F2937"
-                    android:fontFamily="sans-serif-medium" />
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Target amount"
+                        android:textSize="14sp"
+                        android:textColor="#6B7280" />
+
+                    <View
+                        android:layout_width="0dp"
+                        android:layout_height="0dp"
+                        android:layout_weight="1" />
+
+                    <TextView
+                        android:id="@+id/targetAmount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rp60.000.000.000"
+                        android:textSize="14sp"
+                        android:textColor="#1F2937"
+                        android:fontFamily="sans-serif-medium" />
+
+                </LinearLayout>
 
             </LinearLayout>
+
+            <!-- Add Money Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/addMoneyButton"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="+ Add Money"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#6366F1"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_add_circle"
+                app:iconTint="@android:color/white"
+                app:iconGravity="textStart"
+                android:layout_marginBottom="32dp" />
 
             <!-- Saving History Header -->
             <RelativeLayout
@@ -187,22 +253,23 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Saving History"
-                    android:textSize="16sp"
+                    android:text="Transaction History"
+                    android:textSize="18sp"
                     android:textColor="#1F2937"
-                    android:fontFamily="sans-serif-medium" />
+                    android:fontFamily="sans-serif-bold" />
 
                 <TextView
                     android:id="@+id/addHistoryButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="+ Tambah"
+                    android:text="View All"
                     android:textSize="14sp"
                     android:textColor="#6366F1"
-                    android:layout_alignParentRight="true"
+                    android:layout_alignParentEnd="true"
                     android:clickable="true"
                     android:focusable="true"
-                    android:padding="8dp" />
+                    android:padding="8dp"
+                    android:visibility="gone" />
 
             </RelativeLayout>
 
@@ -211,7 +278,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:minHeight="150dp">
+                android:minHeight="200dp">
 
                 <!-- RecyclerView for History -->
                 <androidx.recyclerview.widget.RecyclerView
@@ -229,12 +296,12 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:padding="32dp"
+                    android:padding="40dp"
                     android:visibility="gone">
 
                     <ImageView
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
                         android:src="@drawable/ic_history_empty"
                         android:layout_marginBottom="16dp"
                         app:tint="#D1D5DB" />
@@ -242,7 +309,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Belum Ada Riwayat"
+                        android:text="No History Yet"
                         android:textSize="16sp"
                         android:textColor="#6B7280"
                         android:fontFamily="sans-serif-medium"
@@ -251,7 +318,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Mulai menabung untuk melihat riwayat"
+                        android:text="Start saving to see your transaction history"
                         android:textSize="14sp"
                         android:textColor="#9CA3AF"
                         android:textAlignment="center" />
@@ -260,15 +327,13 @@
 
             </LinearLayout>
 
+            <!-- Bottom Spacing -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="32dp" />
+
         </LinearLayout>
 
     </ScrollView>
-
-    <!-- Bottom Navigation -->
-    <include
-        android:id="@+id/bottomNavigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true" />
 
 </RelativeLayout>

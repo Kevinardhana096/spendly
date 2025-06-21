@@ -17,6 +17,16 @@
         android:theme="@style/Theme.Spendly"
         tools:targetApi="31">
         <activity
+            android:name=".activity.SavingsDetailActivity"
+            android:exported="false"
+            android:label="Savings Detail"
+            android:parentActivityName=".activity.MainActivity"
+            android:theme="@style/Theme.Spendly">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".activity.MainActivity" />
+        </activity>
+        <activity
             android:name=".activity.EditPinCodeActivity"
             android:exported="false" />
         <activity
