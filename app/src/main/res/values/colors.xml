@@ -48,4 +48,13 @@
 
     <color name="gray_primary">#607D8B</color>
     <color name="blue_secondary">#3F51B5</color>
+
+    <color name="text_success">#059669</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="progress_background">#E5E7EB</color>
+    <color name="icon_tint">#9CA3AF</color>
+
+    <color name="background_gradient_start">#FFFFFF</color>
+    <color name="background_gradient_center">#F3F4F6</color>
+    <color name="background_gradient_end">#C7D2FE</color>
 </resources>

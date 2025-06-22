@@ -26,8 +26,7 @@
                 android:layout_weight="1"
                 android:text="Hi! User"
                 android:textSize="20sp"
-                android:textStyle="bold"
-                android:textColor="@color/black" />
+                android:textStyle="bold" />
 
             <androidx.cardview.widget.CardView
                 android:id="@+id/card_profile"
@@ -212,23 +211,24 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:background="@drawable/gradient_background_light_purple"
+                    android:gravity="end"
                     android:orientation="vertical"
-                    android:padding="16dp"
-                    android:gravity="end">
+                    android:padding="16dp">
 
                     <androidx.cardview.widget.CardView
                         android:layout_width="32dp"
                         android:layout_height="32dp"
+                        android:layout_marginBottom="8dp"
                         app:cardCornerRadius="16dp"
-                        app:cardElevation="2dp"
-                        android:layout_marginBottom="8dp">
+                        android:backgroundTint="@color/white"
+                        app:cardElevation="2dp">
 
                         <ImageView
                             android:layout_width="18dp"
                             android:layout_height="18dp"
                             android:layout_gravity="center"
-                            android:src="@drawable/ic_trending_down"
                             android:background="@color/white"
+                            android:src="@drawable/ic_trending_down"
                             app:tint="@color/purple_primary" />
 
                     </androidx.cardview.widget.CardView>
@@ -237,11 +237,11 @@
                         android:id="@+id/tv_outcome"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="end"
                         android:text="Rp9.500.000"
                         android:textColor="@color/white"
                         android:textSize="16sp"
-                        android:textStyle="bold"
-                        android:layout_gravity="end" />
+                        android:textStyle="bold" />
 
                 </LinearLayout>
 
@@ -269,6 +269,7 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         app:cardCornerRadius="16dp"
+                        android:backgroundTint="@color/white"
                         app:cardElevation="2dp"
                         android:layout_marginBottom="8dp">
 
