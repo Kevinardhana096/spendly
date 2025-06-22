@@ -7,7 +7,9 @@
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp"
     android:clickable="true"
-    android:focusable="true">
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/card_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -38,8 +40,7 @@
                 android:layout_weight="1"
                 android:text="Food &amp; Beverages"
                 android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@color/black" />
+                android:textStyle="bold"/>
 
             <ImageView
                 android:id="@+id/iv_expand_icon"
@@ -74,8 +75,7 @@
                 android:layout_height="wrap_content"
                 android:text="Rp150.000"
                 android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="@color/black" />
+                android:textStyle="bold" />
 
             <TextView
                 android:layout_width="wrap_content"

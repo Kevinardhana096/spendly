@@ -8,7 +8,8 @@
     app:cardElevation="4dp"
     android:clickable="true"
     android:focusable="true"
-    android:foreground="?attr/selectableItemBackground">
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/card_background">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -45,7 +46,7 @@
                     android:layout_height="wrap_content"
                     android:text="Lamborghini Veneno"
                     android:textSize="16sp"
-                    android:textColor="#1F2937"
+                    android:textColor="@color/text_primary"
                     android:fontFamily="sans-serif-bold"
                     android:layout_alignParentStart="true"
                     android:layout_centerVertical="true"
@@ -61,7 +62,7 @@
                     android:focusable="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="4dp"
-                    app:tint="#9CA3AF" />
+                    app:tint="@color/icon_tint" />
 
             </RelativeLayout>
 
@@ -78,7 +79,7 @@
                     android:layout_height="wrap_content"
                     android:text="Rp2.150.000"
                     android:textSize="14sp"
-                    android:textColor="#059669"
+                    android:textColor="@color/text_success"
                     android:fontFamily="sans-serif-medium" />
 
                 <TextView
@@ -86,7 +87,7 @@
                     android:layout_height="wrap_content"
                     android:text=" / "
                     android:textSize="14sp"
-                    android:textColor="#6B7280" />
+                    android:textColor="@color/text_secondary" />
 
                 <TextView
                     android:id="@+id/tv_target_amount"
@@ -94,12 +95,12 @@
                     android:layout_height="wrap_content"
                     android:text="Rp60.000.000.000"
                     android:textSize="14sp"
-                    android:textColor="#6B7280"
+                    android:textColor="@color/text_secondary"
                     android:fontFamily="sans-serif-medium" />
 
             </LinearLayout>
 
-            <!-- ✅ PROGRESS BAR - Dynamic Update -->
+            <!-- Progress Bar -->
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -109,11 +110,12 @@
                     android:id="@+id/progress_bar"
                     style="?android:attr/progressBarStyleHorizontal"
                     android:layout_width="match_parent"
-                    android:layout_height="8dp"
+                    android:layout_height="10dp"
                     android:max="100"
                     android:progress="4"
-                    android:progressTint="#059669"
-                    android:progressBackgroundTint="#E5E7EB"
+                    android:progressTint="@color/text_success"
+                    android:progressBackgroundTint="@color/progress_background"
+                    android:translationY="-10dp"
                     android:layout_centerVertical="true" />
 
                 <TextView
@@ -122,11 +124,11 @@
                     android:layout_height="wrap_content"
                     android:text="3.6%"
                     android:textSize="12sp"
-                    android:textColor="#059669"
+                    android:textColor="@color/text_success"
                     android:fontFamily="sans-serif-bold"
                     android:layout_alignParentEnd="true"
                     android:layout_below="@id/progress_bar"
-                    android:layout_marginTop="4dp" />
+                    android:layout_marginTop="10dp" />
 
             </RelativeLayout>
 
@@ -137,10 +139,10 @@
                 android:layout_height="wrap_content"
                 android:text="520 days left"
                 android:textSize="12sp"
-                android:textColor="#6B7280"
+                android:textColor="@color/text_secondary"
                 android:drawableStart="@drawable/ic_calendar_small"
                 android:drawablePadding="4dp"
-                app:drawableTint="#6B7280" />
+                app:drawableTint="@color/icon_tint" />
 
         </LinearLayout>
 
