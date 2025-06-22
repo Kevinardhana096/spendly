@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import android.util.Log;
@@ -19,15 +20,14 @@ import android.widget.ViewSwitcher;
 
 import com.example.spendly.R;
 import com.example.spendly.activity.AddSavingsActivity;
-import com.example.spendly.activity.SavingsDetailActivity; // Import detail activity
+import com.example.spendly.activity.SavingsDetailActivity;
 import com.example.spendly.adapter.SavingsAdapter;
 import com.example.spendly.model.SavingsItem;
+import com.example.spendly.repository.RealtimeSavingsRepository;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,16 +42,15 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
     // Current context - Updated to 2025-06-21 19:03:35
     private static final String CURRENT_DATE_TIME = "2025-06-21 19:03:35";
     private static final String CURRENT_USER = "nowriafisda";
-    private static final long CURRENT_TIMESTAMP = 1719343415000L; // 2025-06-21 19:03:35 UTC
-
-    // View variables
+    private static final long CURRENT_TIMESTAMP = 1719343415000L; // 2025-06-21 19:03:35 UTC    // View variables
     private View rootView;
-    private ViewSwitcher viewSwitcher;
     private View emptyView;
-    private View listView;
-    private FirebaseFirestore db;
     private FirebaseAuth mAuth;
     private FirebaseUser currentUser;
+    private FirebaseFirestore db;
+
+    // Real-time repository
+    private RealtimeSavingsRepository savingsRepository;
 
     // UI components for savings list layout
     private MaterialButton btnAddNewTarget;
@@ -64,47 +63,90 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
 
     public SavingFragment() {
         // Required empty public constructor
-    }
-
-    @Override
+    }    @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Log.d(TAG, "=== SavingFragment Created ===");
-        Log.d(TAG, "Current context: " + CURRENT_DATE_TIME + " (User: " + CURRENT_USER + ")");
-        Log.d(TAG, "Current timestamp: " + CURRENT_TIMESTAMP);
-
-        // Initialize Firebase
-        db = FirebaseFirestore.getInstance();
+        Log.d(TAG, "=== SavingFragment Created with Real-time Repository ===");        // Initialize Firebase
         mAuth = FirebaseAuth.getInstance();
+        db = FirebaseFirestore.getInstance();
         currentUser = mAuth.getCurrentUser();
 
         if (currentUser != null) {
             Log.d(TAG, "Firebase user authenticated: " + currentUser.getEmail());
-            Log.d(TAG, "Firebase UID: " + currentUser.getUid());
+            
+            // Initialize real-time repository
+            savingsRepository = RealtimeSavingsRepository.getInstance(requireContext());
         } else {
-            Log.e(TAG, "No Firebase user found! Navigation may fail.");
+            Log.e(TAG, "No Firebase user found!");
         }
 
         // Initialize savings list
         savingsList = new ArrayList<>();
-    }
-
-    @Override
+    }    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         Log.d(TAG, "onCreateView called");
 
-        // Create the main container with a ViewSwitcher
         rootView = inflater.inflate(R.layout.fragment_saving, container, false);
 
         // Initialize views
         setupViews(inflater, container);
 
-        // Check if data exists and show appropriate state
-        checkForSavingsData();
+        // Setup real-time data observer
+        setupRealtimeDataObserver();
 
         return rootView;
+    }
+
+    private void setupRealtimeDataObserver() {
+        if (currentUser == null || savingsRepository == null) {
+            Log.e(TAG, "Cannot setup observer - user or repository is null");
+            return;
+        }
+
+        Log.d(TAG, "Setting up real-time data observer");
+
+        // Observe savings data with real-time updates
+        savingsRepository.getSavings(currentUser.getUid()).observe(getViewLifecycleOwner(), 
+            new Observer<List<SavingsItem>>() {
+                @Override
+                public void onChanged(List<SavingsItem> savings) {
+                    Log.d(TAG, "Real-time savings update received: " + 
+                          (savings != null ? savings.size() : 0) + " items");
+                    
+                    if (savings != null) {
+                        savingsList.clear();
+                        savingsList.addAll(savings);
+                        
+                        if (savingsAdapter != null) {
+                            savingsAdapter.setSavingsList(savingsList);
+                        }
+                        
+                        // Update UI state
+                        if (savings.isEmpty()) {
+                            showEmptyState();
+                        } else {
+                            showListState();
+                        }
+                    }
+                }
+            });
+
+        // Observe loading state
+        savingsRepository.getLoadingState().observe(getViewLifecycleOwner(), 
+            isLoading -> {
+                // You can show/hide loading indicators here
+                Log.d(TAG, "Loading state: " + isLoading);
+            });
+
+        // Observe error messages
+        savingsRepository.getErrorMessage().observe(getViewLifecycleOwner(), 
+            error -> {
+                if (error != null && !error.isEmpty()) {
+                    Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                }
+            });
     }
 
     private void setupViews(LayoutInflater inflater, ViewGroup container) {
@@ -138,38 +180,10 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
         }
 
         Log.d(TAG, "Views setup completed");
-    }
-
-    private void checkForSavingsData() {
-        if (currentUser == null) {
-            Log.e(TAG, "Cannot check savings data - no user authenticated");
-            return;
-        }
-
-        Log.d(TAG, "Checking for savings data...");
-
-        db.collection("users")
-                .document(currentUser.getUid())
-                .collection("savings")
-                .limit(1)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    if (queryDocumentSnapshots.isEmpty()) {
-                        // No data, show empty state
-                        Log.d(TAG, "No savings data found, showing empty state");
-                        showEmptyState();
-                    } else {
-                        // Data exists, show list state and load all data
-                        Log.d(TAG, "Savings data found, showing list view");
-                        showListState();
-                        loadSavingsData();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error checking for savings data", e);
-                    // On error, show empty state as fallback
-                    showEmptyState();
-                });
+    }    private void checkForSavingsData() {
+        // This method is now handled by the real-time repository observer
+        // No manual data loading needed
+        Log.d(TAG, "Data loading handled by real-time observer");
     }
 
     private void showEmptyState() {
@@ -210,70 +224,22 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
         recyclerViewSavings.setAdapter(savingsAdapter);
 
         Log.d(TAG, "RecyclerView setup completed successfully.");
-        Log.d(TAG, "SavingsAdapter created with click listeners");
-    }
+        Log.d(TAG, "SavingsAdapter created with click listeners");    }
 
     @Override
     public void onResume() {
         super.onResume();
-        Log.d(TAG, "onResume called at " + CURRENT_DATE_TIME);
-
-        // Always check for data when fragment resumes
-        if (currentUser != null) {
-            checkForSavingsData();
-        }
+        Log.d(TAG, "onResume called - real-time updates active");
+        // No need to manually reload data - real-time observer handles it
     }
 
-    private void loadSavingsData() {
-        if (currentUser == null || recyclerViewSavings == null) {
-            Log.e(TAG, "Cannot load savings data - user is null or RecyclerView is null");
-            return;
-        }
-
-        Log.d(TAG, "Loading savings data from Firestore for user: " + currentUser.getEmail());
-
-        db.collection("users")
-                .document(currentUser.getUid())
-                .collection("savings")
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    savingsList.clear();
-
-                    if (!queryDocumentSnapshots.isEmpty()) {
-                        Log.d(TAG, "Found " + queryDocumentSnapshots.size() + " savings items");
-
-                        // Data found in Firestore
-                        for (DocumentSnapshot document : queryDocumentSnapshots) {
-                            SavingsItem item = document.toObject(SavingsItem.class);
-                            if (item != null) {
-                                item.setId(document.getId());
-                                savingsList.add(item);
-                                Log.d(TAG, "Added savings item: " + item.getName() +
-                                        ", ID: " + item.getId() +
-                                        ", Current: " + item.getCurrentAmount() +
-                                        ", Target: " + item.getTargetAmount());
-                            }
-                        }
-
-                        // Update adapter with the new data
-                        if (savingsAdapter != null) {
-                            savingsAdapter.setSavingsList(savingsList);
-                            Log.d(TAG, "Updated adapter with " + savingsList.size() + " items");
-                            showListState();
-                        } else {
-                            Log.e(TAG, "savingsAdapter is null!");
-                        }
-                    } else {
-                        Log.d(TAG, "No savings documents found");
-                        // No data found, show empty state
-                        showEmptyState();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading savings data", e);
-                    Toast.makeText(getContext(), "Failed to load savings data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // Clean up repository resources
+        if (savingsRepository != null) {
+            savingsRepository.cleanup();        }
+        Log.d(TAG, "SavingFragment destroyed and cleaned up");
     }
 
     private void navigateToAddSavings() {
@@ -358,7 +324,8 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
                     showListState();
 
                     // Reload data to get the real ID
-                    loadSavingsData();
+                    // Real-time repository will automatically update the UI
+                    // loadSavingsData(); // No longer needed
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error adding savings target", e);

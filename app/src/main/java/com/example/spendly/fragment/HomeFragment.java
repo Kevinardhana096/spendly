@@ -20,8 +20,8 @@ import com.example.spendly.R;
 import com.example.spendly.activity.ProfileSettingsActivity;
 import com.example.spendly.model.Transaction;
 import com.example.spendly.model.User;
-import com.example.spendly.repository.BudgetRepository;
-import com.example.spendly.repository.TransactionRepository;
+import com.example.spendly.repository.RealtimeTransactionRepository;
+import com.example.spendly.repository.RealtimeSavingsRepository;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -61,11 +61,9 @@ public class HomeFragment extends Fragment {
     // Firebase components
     private FirebaseAuth mAuth;
     private FirebaseFirestore mFirestore;
-    private FirebaseUser currentUser;
-
-    // Repositories
-    private BudgetRepository budgetRepository;
-    private TransactionRepository transactionRepository;
+    private FirebaseUser currentUser;    // Repositories - Updated to real-time versions
+    private RealtimeTransactionRepository transactionRepository;
+    private RealtimeSavingsRepository savingsRepository;
 
     // Real-time listeners
     private ListenerRegistration userBalanceListener;
@@ -109,28 +107,32 @@ public class HomeFragment extends Fragment {
             if (!CURRENT_USER.equals(currentUser.getEmail()) &&
                     !currentUser.getEmail().contains(CURRENT_USER)) {
                 Log.w(TAG, "User mismatch - Expected: " + CURRENT_USER + ", Got: " + currentUser.getEmail());
-            }
-        } else {
+            }        } else {
             Log.e(TAG, "No Firebase user found!");
         }
 
-        // Initialize repositories
+        // Initialize repositories - Updated to real-time versions
         if (getActivity() != null) {
-            budgetRepository = BudgetRepository.getInstance(getActivity());
-            transactionRepository = TransactionRepository.getInstance(getActivity());
+            transactionRepository = RealtimeTransactionRepository.getInstance(getActivity());
+            savingsRepository = RealtimeSavingsRepository.getInstance(getActivity());
         }
 
         // Initialize views
         initViews(view);
 
         // Show loading state
-        showLoadingState(true);
-
-        // Setup real-time listeners
-        setupRealtimeListeners();
-
-        // Load initial data
+        showLoadingState(true);// Load initial data first (faster)
         loadUserData();
+
+        // Setup real-time observers for automatic updates
+        setupRealtimeObservers();
+
+        // Setup legacy real-time listeners after initial load (delayed for compatibility)
+        view.postDelayed(() -> {
+            if (isAdded() && currentUser != null) {
+                setupRealtimeListeners();
+            }
+        }, 1000); // 1 second delay
     }
 
     /**
@@ -183,6 +185,84 @@ public class HomeFragment extends Fragment {
 
     /**
      * ✅ NEW: Setup real-time Firestore listeners for immediate outcome updates
+     */
+    /**
+     * Setup real-time observers for automatic data updates
+     */
+    private void setupRealtimeObservers() {
+        if (currentUser == null || transactionRepository == null || savingsRepository == null) {
+            Log.e(TAG, "Cannot setup observers - missing dependencies");
+            return;
+        }
+
+        Log.d(TAG, "=== SETTING UP REAL-TIME OBSERVERS ===");
+
+        // Observe transactions with real-time updates
+        transactionRepository.getTransactions(currentUser.getUid()).observe(getViewLifecycleOwner(), 
+            transactions -> {
+                if (transactions != null) {
+                    Log.d(TAG, "Real-time transactions update: " + transactions.size() + " items");
+                    // Update income/expense calculations
+                    updateTransactionTotals(transactions);
+                }
+            });
+
+        // Observe transaction totals
+        transactionRepository.getTotalIncome().observe(getViewLifecycleOwner(), 
+            income -> {
+                if (income != null) {
+                    totalIncome = income;
+                    updateBalanceAndOutcome();
+                }
+            });
+
+        transactionRepository.getTotalExpenses().observe(getViewLifecycleOwner(), 
+            expenses -> {
+                if (expenses != null) {
+                    totalExpenses = expenses;
+                    updateBalanceAndOutcome();
+                }
+            });
+
+        // Observe savings with real-time updates
+        savingsRepository.getSavings(currentUser.getUid()).observe(getViewLifecycleOwner(), 
+            savings -> {
+                if (savings != null) {
+                    Log.d(TAG, "Real-time savings update: " + savings.size() + " items");
+                    // Calculate total savings amount
+                    double total = 0.0;
+                    for (com.example.spendly.model.SavingsItem item : savings) {
+                        total += item.getCurrentAmount();
+                    }
+                    totalSavingsAmount = total;
+                    updateBalanceAndOutcome();
+                }
+            });
+
+        Log.d(TAG, "Real-time observers setup completed");
+    }
+
+    /**
+     * Update transaction totals from list
+     */
+    private void updateTransactionTotals(List<com.example.spendly.model.Transaction> transactions) {
+        double income = 0.0;
+        double expenses = 0.0;
+        
+        for (com.example.spendly.model.Transaction transaction : transactions) {
+            if ("income".equals(transaction.getType())) {
+                income += transaction.getAmount();
+            } else if ("expense".equals(transaction.getType())) {
+                expenses += transaction.getAmount();
+            }
+        }
+          totalIncome = income;
+        totalExpenses = expenses;
+        updateBalanceAndOutcome();
+    }
+
+    /**
+     * Setup legacy real-time listeners (for compatibility)
      */
     private void setupRealtimeListeners() {
         if (currentUser == null) {
@@ -315,12 +395,12 @@ public class HomeFragment extends Fragment {
         Log.d(TAG, "- Current: 2025-06-21 20:24:22 UTC (" + 1719348262000L + ")");
 
         String listenerPath = "users/" + currentUser.getUid() + "/transactions";
-        Log.d(TAG, "Listening to Firestore path: " + listenerPath);
-
-        // ✅ REAL-TIME LISTENER: Listen to ALL transactions with immediate filtering
+        Log.d(TAG, "Listening to Firestore path: " + listenerPath);        // ✅ OPTIMIZED REAL-TIME LISTENER: Listen to recent transactions only
         transactionsListener = mFirestore.collection("users")
                 .document(currentUser.getUid())
                 .collection("transactions")
+                .orderBy("date", Query.Direction.DESCENDING)
+                .limit(50) // Limit to recent 50 transactions for better performance
                 .addSnapshotListener((querySnapshot, e) -> {
                     if (e != null) {
                         Log.e(TAG, "❌ Transaction listener error", e);
@@ -536,14 +616,13 @@ public class HomeFragment extends Fragment {
                         Log.d(TAG, "User document found in Firestore");
 
                         // Convert document to User object
-                        User user = documentSnapshot.toObject(User.class);
-                        if (user != null) {
+                        User user = documentSnapshot.toObject(User.class);                        if (user != null) {
                             // Update available balance from user profile
                             availableBalance = user.getCurrentBalance();
                             Log.d(TAG, "Initial user available balance: Rp" + formatNumber(availableBalance));
 
-                            // Load initial savings data
-                            loadInitialSavingsData();
+                            // Load budget data first to get monthly income
+                            loadInitialBudgetData();
                         }
                     } else {
                         Log.w(TAG, "User document not found, creating default");
@@ -555,6 +634,49 @@ public class HomeFragment extends Fragment {
                     Log.e(TAG, "Error loading user data", e);
                     showLoadingState(false);
                     showToast("Failed to load user data: " + e.getMessage());
+                });
+    }    /**
+     * Load initial budget data to get monthly income for display
+     */
+    private void loadInitialBudgetData() {
+        Log.d(TAG, "Loading initial budget data...");
+
+        mFirestore.collection("users")
+                .document(currentUser.getUid())
+                .collection("budget")
+                .document("total_budget")
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists() && documentSnapshot.getData() != null) {
+                        Map<String, Object> budgetData = documentSnapshot.getData();
+                        
+                        // Extract monthly income from budget data
+                        if (budgetData.containsKey("monthly_income")) {
+                            if (budgetData.get("monthly_income") instanceof Double) {
+                                totalIncome = (Double) budgetData.get("monthly_income");
+                            } else if (budgetData.get("monthly_income") instanceof Long) {
+                                totalIncome = ((Long) budgetData.get("monthly_income")).doubleValue();
+                            }
+                            Log.d(TAG, "Monthly income from budget: Rp" + formatNumber(totalIncome));
+                        }
+                        
+                        // Extract other budget values
+                        extractBudgetData(budgetData);
+                        
+                        Log.d(TAG, "Budget data loaded - Income: Rp" + formatNumber(totalIncome) + 
+                              ", Budget: Rp" + formatNumber(totalBudget));
+                    } else {
+                        Log.d(TAG, "No budget data found, using default income value");
+                        // If no budget is set, income will remain 0 or use transaction-based income
+                    }
+                    
+                    // Continue loading savings data
+                    loadInitialSavingsData();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error loading budget data", e);
+                    // Continue with savings data even if budget fails
+                    loadInitialSavingsData();
                 });
     }
 
@@ -663,51 +785,14 @@ public class HomeFragment extends Fragment {
                     showLoadingState(false);
                     showToast("Failed to create user data: " + e.getMessage());
                 });
-    }
-
-    /**
-     * Load budget data from BudgetRepository - UNCHANGED
+    }    /**
+     * Load budget data - Simplified for now without BudgetRepository callbacks
      */
     private void loadBudgetData() {
         Log.d(TAG, "Loading budget data...");
-
-        if (budgetRepository == null) {
-            Log.w(TAG, "BudgetRepository is null, skipping budget data");
-            showLoadingState(false);
-            updateUI();
-            return;
-        }
-
-        budgetRepository.checkBudgetExists(new BudgetRepository.BudgetCallback() {
-            @Override
-            public void onSuccess(Map<String, Object> data) {
-                boolean budgetExists = data.containsKey("exists") && (boolean) data.get("exists");
-
-                if (budgetExists) {
-                    budgetRepository.getTotalBudget(new BudgetRepository.BudgetCallback() {
-                        @Override
-                        public void onSuccess(Map<String, Object> budgetData) {
-                            extractBudgetData(budgetData);
-                            loadTransactionData();
-                        }
-
-                        @Override
-                        public void onError(Exception e) {
-                            Log.e(TAG, "Error loading budget data", e);
-                            loadTransactionData();
-                        }
-                    });
-                } else {
-                    loadTransactionData();
-                }
-            }
-
-            @Override
-            public void onError(Exception e) {
-                Log.e(TAG, "Error checking budget existence", e);
-                loadTransactionData();
-            }
-        });
+        // For now, just load transaction data directly
+        // TODO: Implement budget functionality with Room/LiveData pattern
+        loadTransactionData();
     }
 
     /**
@@ -744,55 +829,18 @@ public class HomeFragment extends Fragment {
 
     /**
      * Load transaction data from repository - For comparison
-     */
-    private void loadTransactionData() {
+     */    private void loadTransactionData() {
         if (transactionRepository == null) {
             showLoadingState(false);
             updateUI();
             return;
         }
 
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTimeInMillis(CURRENT_TIMESTAMP);
-
-        int year = calendar.get(Calendar.YEAR);
-        int month = calendar.get(Calendar.MONTH);
-
-        calendar.set(year, month, 1, 0, 0, 0);
-        Date startDate = calendar.getTime();
-
-        calendar.set(year, month, calendar.getActualMaximum(Calendar.DAY_OF_MONTH), 23, 59, 59);
-        Date endDate = calendar.getTime();
-
-        transactionRepository.getMonthlyTransactions(startDate, endDate,
-                new TransactionRepository.TransactionCallback() {
-                    @Override
-                    public void onSuccess(Map<String, Object> data) {
-                        if (data.containsKey("transactions")) {
-                            @SuppressWarnings("unchecked")
-                            List<Transaction> transactions = (List<Transaction>) data.get("transactions");
-
-                            totalExpenses = 0.0;
-                            for (Transaction transaction : transactions) {
-                                if ("expense".equalsIgnoreCase(transaction.getType())) {
-                                    totalExpenses += transaction.getAmount();
-                                }
-                            }
-
-                            Log.d(TAG, "Repository transaction expenses: Rp" + formatNumber(totalExpenses));
-                        }
-
-                        showLoadingState(false);
-                        updateUI();
-                    }
-
-                    @Override
-                    public void onError(Exception e) {
-                        Log.e(TAG, "Error loading repository transaction data", e);
-                        showLoadingState(false);
-                        updateUI();
-                    }
-                });
+        // The transaction data is already being observed via LiveData in observeTransactionData()
+        // No need for manual loading with callbacks
+        Log.d(TAG, "Transaction data is loaded via LiveData observers");
+        showLoadingState(false);
+        updateUI();
     }
 
     /**
@@ -954,11 +1002,20 @@ public class HomeFragment extends Fragment {
         if (savingsListener != null) {
             savingsListener.remove();
             Log.d(TAG, "Savings listener removed");
-        }
-
-        if (transactionsListener != null) {
+        }        if (transactionsListener != null) {
             transactionsListener.remove();
             Log.d(TAG, "Transactions listener removed");
         }
+
+        // Clean up real-time repositories
+        if (transactionRepository != null) {
+            transactionRepository.cleanup();
+        }
+        
+        if (savingsRepository != null) {
+            savingsRepository.cleanup();
+        }
+        
+        Log.d(TAG, "Real-time repositories cleaned up");
     }
 }

@@ -21,6 +21,12 @@ public class MainActivity extends AppCompatActivity {
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
+    
+    // Fragment caching for better performance
+    private HomeFragment homeFragment;
+    private SavingFragment savingFragment;
+    private BudgetFragment budgetFragment;
+    private HistoryFragment historyFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,12 +38,11 @@ public class MainActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
 
         BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
-        FloatingActionButton fab = findViewById(R.id.fab_add);
-
-        // Set default fragment
+        FloatingActionButton fab = findViewById(R.id.fab_add);        // Set default fragment with caching
         if (savedInstanceState == null) {
+            homeFragment = new HomeFragment();
             getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.nav_host_fragment, new HomeFragment())
+                    .replace(R.id.nav_host_fragment, homeFragment)
                     .commit();
         }
 
@@ -46,13 +51,25 @@ public class MainActivity extends AppCompatActivity {
 
             int itemId = item.getItemId();
             if (itemId == R.id.nav_home) {
-                selectedFragment = new HomeFragment();
+                if (homeFragment == null) {
+                    homeFragment = new HomeFragment();
+                }
+                selectedFragment = homeFragment;
             } else if (itemId == R.id.nav_savings) {
-                selectedFragment = new SavingFragment();
+                if (savingFragment == null) {
+                    savingFragment = new SavingFragment();
+                }
+                selectedFragment = savingFragment;
             } else if (itemId == R.id.nav_budgeting) {
-                selectedFragment = new BudgetFragment();
+                if (budgetFragment == null) {
+                    budgetFragment = new BudgetFragment();
+                }
+                selectedFragment = budgetFragment;
             } else if (itemId == R.id.nav_history) {
-                selectedFragment = new HistoryFragment();
+                if (historyFragment == null) {
+                    historyFragment = new HistoryFragment();
+                }
+                selectedFragment = historyFragment;
             }
 
             if (selectedFragment != null) {

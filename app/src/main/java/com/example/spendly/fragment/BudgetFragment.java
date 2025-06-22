@@ -99,13 +99,20 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
         if (loadingProgressBar != null) {
             loadingProgressBar.setVisibility(View.VISIBLE);
         }
-    }
+    }    // Add caching variables
+    private boolean isDataLoaded = false;
+    private long lastLoadTime = 0;
+    private static final long CACHE_DURATION = 30000; // 30 seconds cache
 
     @Override
     public void onResume() {
         super.onResume();
-        // Check budget state every time fragment becomes visible
-        checkBudgetState();
+        
+        // Only reload if data is stale or not loaded yet
+        long currentTime = System.currentTimeMillis();
+        if (!isDataLoaded || (currentTime - lastLoadTime) > CACHE_DURATION) {
+            checkBudgetState();
+        }
     }
 
     private void initViews(View view) {

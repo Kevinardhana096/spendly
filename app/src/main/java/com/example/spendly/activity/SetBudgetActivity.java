@@ -394,47 +394,108 @@ public class SetBudgetActivity extends AppCompatActivity {
 
         // Save to Firebase and SQLite
         saveToRepository(category, totalBudget);
-    }
-
-    private void saveToRepository(String category, double amount) {
+    }    private void saveToRepository(String category, double amount) {
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser == null) {
             Toast.makeText(this, "You need to be logged in to set a budget", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        // Log for debugging
+        android.util.Log.d("SetBudgetActivity", "Saving budget - User: " + currentUser.getUid() + 
+                          ", Category: " + category + ", Amount: " + amount);
+
         // Show loading indicator
         progressBar.setVisibility(View.VISIBLE);
         btnAddBudget.setEnabled(false);
 
-        String formattedAmount = formatNumber((int) amount);
-
-        // Create category budget data
+        String formattedAmount = formatNumber((int) amount);        // Create category budget data
         Map<String, Object> categoryData = new HashMap<>();
         categoryData.put("amount", amount);
         categoryData.put("formatted_amount", formattedAmount);
         // Initialize spent to 0 (important - don't set it to the budget amount)
         categoryData.put("spent", 0.0);
         categoryData.put("formatted_spent", "0");
-        categoryData.put("date_added", new Date().toString());
+        categoryData.put("date_added", System.currentTimeMillis()); // Use timestamp instead of Date string
+        
+        // Log the data being saved
+        android.util.Log.d("SetBudgetActivity", "Category data: " + categoryData.toString());        // Try to save using repository pattern with improved error handling
+        try {
+            budgetRepository.saveBudgetCategory(category, categoryData, new BudgetRepository.BudgetCallback() {
+                @Override
+                public void onSuccess(Map<String, Object> data) {
+                    android.util.Log.d("SetBudgetActivity", "Budget category saved successfully");
+                    // Also update the remaining budget
+                    updateRemainingBudgetInRepository(remainingBudget - amount);
+                }
 
-        // Save using repository pattern
-        budgetRepository.saveBudgetCategory(category, categoryData, new BudgetRepository.BudgetCallback() {
-            @Override
-            public void onSuccess(Map<String, Object> data) {
-                // Also update the remaining budget
-                updateRemainingBudgetInRepository(remainingBudget - amount);
-            }
+                @Override
+                public void onError(Exception e) {
+                    progressBar.setVisibility(View.GONE);
+                    btnAddBudget.setEnabled(true);
+                    
+                    // Log the detailed error for debugging
+                    android.util.Log.e("SetBudgetActivity", "Failed to save category: " + category + ", amount: " + amount, e);
+                    
+                    // Try alternative saving method as fallback
+                    tryAlternativeSave(category, amount, formattedAmount);
+                }
+            });
+        } catch (Exception e) {
+            android.util.Log.e("SetBudgetActivity", "Exception in repository save", e);
+            progressBar.setVisibility(View.GONE);
+            btnAddBudget.setEnabled(true);
+            tryAlternativeSave(category, amount, formattedAmount);
+        }
+    }
 
-            @Override
-            public void onError(Exception e) {
-                progressBar.setVisibility(View.GONE);
-                btnAddBudget.setEnabled(true);
-                Toast.makeText(SetBudgetActivity.this,
-                        "Failed to save category: " + e.getMessage(),
-                        Toast.LENGTH_SHORT).show();
-            }
-        });
+    /**
+     * Alternative save method as fallback when repository fails
+     */
+    private void tryAlternativeSave(String category, double amount, String formattedAmount) {
+        android.util.Log.d("SetBudgetActivity", "Trying alternative save method");
+        
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(this, "User authentication failed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show loading again
+        progressBar.setVisibility(View.VISIBLE);
+        btnAddBudget.setEnabled(false);
+
+        // Direct Firebase save with simpler data structure
+        Map<String, Object> simpleBudgetData = new HashMap<>();
+        simpleBudgetData.put("amount", amount);
+        simpleBudgetData.put("formatted_amount", formattedAmount);
+        simpleBudgetData.put("spent", 0.0);
+        simpleBudgetData.put("timestamp", System.currentTimeMillis());
+
+        String userId = currentUser.getUid();
+        
+        // Save directly to Firebase with simpler path
+        db.collection("users").document(userId)
+                .collection("budget_categories").document(category)
+                .set(simpleBudgetData)
+                .addOnSuccessListener(aVoid -> {
+                    android.util.Log.d("SetBudgetActivity", "Alternative save successful");
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(SetBudgetActivity.this, "Budget category added successfully", Toast.LENGTH_SHORT).show();
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    android.util.Log.e("SetBudgetActivity", "Alternative save also failed", e);
+                    progressBar.setVisibility(View.GONE);
+                    btnAddBudget.setEnabled(true);
+                    
+                    String errorMessage = "Unable to save budget. Please check your internet connection and try again.";
+                    if (e != null && e.getMessage() != null) {
+                        errorMessage += "\nError: " + e.getMessage();
+                    }
+                    
+                    Toast.makeText(SetBudgetActivity.this, errorMessage, Toast.LENGTH_LONG).show();
+                });
     }
 
     private void updateRemainingBudgetInRepository(final double newRemainingBudget) {

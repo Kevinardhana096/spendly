@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.spendly.R;
 import com.example.spendly.model.User;
+import com.example.spendly.utils.FirestoreTestUtils;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -299,20 +300,31 @@ public class SignUpActivity extends AppCompatActivity {
         } catch (NumberFormatException e) {
             Toast.makeText(getApplicationContext(), "Invalid current balance format", Toast.LENGTH_SHORT).show();
             return;
-        }
-
-        // Show loading state
+        }        // Show loading state with progress indicator
         btnSignUp.setEnabled(false);
-        btnSignUp.setText(R.string.creating_account);
+        btnSignUp.setText("Creating Account...");
+        
+        android.util.Log.d("SignUpActivity", "Starting user registration process");
+        android.util.Log.d("SignUpActivity", "Email: " + email);
+        android.util.Log.d("SignUpActivity", "Phone: " + phone);
+        android.util.Log.d("SignUpActivity", "Gender: " + gender);
+        android.util.Log.d("SignUpActivity", "DOB: " + dob);
+        android.util.Log.d("SignUpActivity", "Current Balance: " + currentBalance);
+        
+        // Optional: Show progress dialog for better UX
+        // ProgressDialog could be added here
 
         // Create user with email and password
         mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
+                        android.util.Log.d("SignUpActivity", "✅ Firebase Authentication successful");
+                        
                         // Sign up success
                         FirebaseUser firebaseUser = mAuth.getCurrentUser();
                         if (firebaseUser != null) {
-                            // Create user object
+                            android.util.Log.d("SignUpActivity", "Firebase user created with UID: " + firebaseUser.getUid());
+                              // Create user object
                             User user = new User(
                                     firebaseUser.getUid(),
                                     email,
@@ -322,10 +334,21 @@ public class SignUpActivity extends AppCompatActivity {
                                     currentBalance
                             );
 
+                            // Test Firestore connectivity before saving user data
+                            android.util.Log.d("SignUpActivity", "Running Firestore connectivity tests...");
+                            FirestoreTestUtils.runConnectivityTests();
+
                             // Save user data to Firestore
                             saveUserToFirestore(user);
+                        } else {
+                            android.util.Log.e("SignUpActivity", "❌ Firebase user is null after successful authentication");
+                            btnSignUp.setEnabled(true);
+                            btnSignUp.setText(R.string.sign_up);
+                            Toast.makeText(getApplicationContext(), "Authentication error: User object is null", Toast.LENGTH_LONG).show();
                         }
                     } else {
+                        android.util.Log.e("SignUpActivity", "❌ Firebase Authentication failed", task.getException());
+                        
                         // If sign up fails, display a message to the user
                         btnSignUp.setEnabled(true);
                         btnSignUp.setText(R.string.sign_up);
@@ -335,22 +358,30 @@ public class SignUpActivity extends AppCompatActivity {
                                     Toast.LENGTH_LONG).show();
                         } else {
                             String errorMessage = task.getException() != null ? task.getException().getMessage() : "Unknown error";
+                            android.util.Log.e("SignUpActivity", "Detailed auth error: " + errorMessage);
                             Toast.makeText(getApplicationContext(), "Registration failed: " + errorMessage,
                                     Toast.LENGTH_LONG).show();
                         }
                     }
                 });
-    }
-
-    /**
-     * Save user data to Firestore
+    }    /**
+     * Save user data to Firestore with error handling optimization
      * @param user The user object containing data to save
      */
     private void saveUserToFirestore(User user) {
+        android.util.Log.d("SignUpActivity", "Attempting to save user data to Firestore");
+        android.util.Log.d("SignUpActivity", "User ID: " + user.getUserId());
+        android.util.Log.d("SignUpActivity", "Email: " + user.getEmail());
+        android.util.Log.d("SignUpActivity", "Phone: " + user.getPhoneNumber());
+        android.util.Log.d("SignUpActivity", "Current Balance: " + user.getCurrentBalance());
+        
+        // Use merge option for better performance and conflict handling
         mFirestore.collection("users")
                 .document(user.getUserId())
-                .set(user)
+                .set(user, com.google.firebase.firestore.SetOptions.merge())
                 .addOnSuccessListener(aVoid -> {
+                    android.util.Log.d("SignUpActivity", "✅ User data saved successfully to Firestore");
+                    
                     btnSignUp.setEnabled(true);
                     btnSignUp.setText(R.string.sign_up);
 
@@ -363,17 +394,32 @@ public class SignUpActivity extends AppCompatActivity {
                     finish();
                 })
                 .addOnFailureListener(e -> {
+                    android.util.Log.e("SignUpActivity", "❌ Failed to save user data to Firestore", e);
+                    android.util.Log.e("SignUpActivity", "Error message: " + e.getMessage());
+                    android.util.Log.e("SignUpActivity", "Error class: " + e.getClass().getSimpleName());
+                    
                     btnSignUp.setEnabled(true);
                     btnSignUp.setText(R.string.sign_up);
 
-                    // Handle the error
-                    Toast.makeText(getApplicationContext(), "Failed to save user data: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    // Handle the error with more detailed information
+                    String errorMsg = "Failed to save user data: " + e.getMessage();
+                    if (e.getMessage() != null && e.getMessage().contains("PERMISSION_DENIED")) {
+                        errorMsg = "Permission denied. Please check Firestore security rules.";
+                    }
+                    
+                    Toast.makeText(getApplicationContext(), errorMsg, Toast.LENGTH_LONG).show();
 
                     // Delete the authentication account since we couldn't save the user data
                     FirebaseUser firebaseUser = mAuth.getCurrentUser();
                     if (firebaseUser != null) {
-                        firebaseUser.delete();
+                        android.util.Log.d("SignUpActivity", "Deleting Firebase Auth user due to Firestore save failure");
+                        firebaseUser.delete().addOnCompleteListener(deleteTask -> {
+                            if (deleteTask.isSuccessful()) {
+                                android.util.Log.d("SignUpActivity", "Firebase Auth user deleted successfully");
+                            } else {
+                                android.util.Log.e("SignUpActivity", "Failed to delete Firebase Auth user", deleteTask.getException());
+                            }
+                        });
                     }
                 });
     }

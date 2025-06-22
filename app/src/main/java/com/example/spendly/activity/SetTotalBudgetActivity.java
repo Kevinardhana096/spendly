@@ -176,6 +176,11 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
             return;
         }
 
+        android.util.Log.d("SetTotalBudgetActivity", "Starting to save budget data...");
+        android.util.Log.d("SetTotalBudgetActivity", "Monthly Income: " + monthlyIncome);
+        android.util.Log.d("SetTotalBudgetActivity", "Monthly Budget: " + monthlyBudget);
+        android.util.Log.d("SetTotalBudgetActivity", "User ID: " + currentUser.getUid());
+
         // Show loading indicator
         progressBar.setVisibility(View.VISIBLE);
         btnNext.setEnabled(false);
@@ -192,9 +197,11 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
         budgetData.put("last_updated", new Date().toString());
 
         // Save to both Firebase and SQLite using repository
+        android.util.Log.d("SetTotalBudgetActivity", "Calling budgetRepository.saveTotalBudget()...");
         budgetRepository.saveTotalBudget(budgetData, new BudgetRepository.BudgetCallback() {
             @Override
             public void onSuccess(Map<String, Object> data) {
+                android.util.Log.d("SetTotalBudgetActivity", "✅ Budget save successful!");
                 progressBar.setVisibility(View.GONE);
 
                 // Check if data was saved offline-only
@@ -220,6 +227,8 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
 
             @Override
             public void onError(Exception e) {
+                android.util.Log.e("SetTotalBudgetActivity", "❌ Budget save failed!", e);
+                android.util.Log.e("SetTotalBudgetActivity", "Error message: " + e.getMessage());
                 progressBar.setVisibility(View.GONE);
                 btnNext.setEnabled(true);
                 Toast.makeText(SetTotalBudgetActivity.this,

@@ -13,14 +13,20 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Observer;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.spendly.R;
 import com.example.spendly.activity.AddTransactionActivity;
 import com.example.spendly.model.Transaction;
-import com.example.spendly.repository.TransactionRepository;
+import com.example.spendly.repository.RealtimeTransactionRepository;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+
+import android.util.Log;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -30,15 +36,23 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class HistoryFragment extends Fragment {
-
+    
+    private static final String TAG = "HistoryFragment";
+    private static final int INITIAL_LOAD_LIMIT = 50;
+    private static final long CACHE_DURATION = 30000; // 30 seconds
+    
     private RecyclerView transactionsRecyclerView;
     private TransactionAdapter transactionAdapter;
-    private TransactionRepository transactionRepository;
+    private RealtimeTransactionRepository transactionRepository;
     private List<Transaction> transactions = new ArrayList<>();
     private Map<String, List<Transaction>> groupedByDateTransactions = new TreeMap<>();
     private View emptyStateView;
     private View contentView;
     private Button addTransactionButton;
+    
+    // Cache variables
+    private boolean isDataLoaded = false;
+    private long lastLoadTime = 0;
 
     public HistoryFragment() {
         // Required empty public constructor
@@ -47,7 +61,7 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        transactionRepository = TransactionRepository.getInstance(requireContext());
+        transactionRepository = RealtimeTransactionRepository.getInstance(requireContext());
     }
 
     @Override
@@ -71,71 +85,132 @@ public class HistoryFragment extends Fragment {
         filterButton.setOnClickListener(v -> {
             // Future implementation for filtering
             Toast.makeText(getContext(), "Filter functionality coming soon", Toast.LENGTH_SHORT).show();
-        });
-
-        // Set up "Add Transaction" button in empty state view
+        });        // Set up "Add Transaction" button in empty state view
         addTransactionButton.setOnClickListener(v -> {
             Intent intent = new Intent(getActivity(), AddTransactionActivity.class);
             startActivity(intent);
         });
 
-        // Load transactions
-        loadTransactions();
+        // Setup real-time data observer
+        setupRealtimeDataObserver();
 
         return view;
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        // Reload transactions when fragment becomes visible
-        loadTransactions();
-    }
-
-    private void loadTransactions() {
+    private void setupRealtimeDataObserver() {
         String userId = FirebaseAuth.getInstance().getUid();
         if (userId == null) {
             Toast.makeText(getContext(), "User not logged in", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        transactionRepository.getUserTransactions(new TransactionRepository.TransactionCallback() {
-            @Override
-            public void onSuccess(Map<String, Object> data) {
-                if (data.containsKey("transactions")) {
-                    @SuppressWarnings("unchecked")
-                    List<Transaction> loadedTransactions = (List<Transaction>) data.get("transactions");
-
+        // Observe transactions with real-time updates
+        transactionRepository.getTransactions(userId).observe(getViewLifecycleOwner(), 
+            new Observer<List<Transaction>>() {
+                @Override
+                public void onChanged(List<Transaction> loadedTransactions) {
                     if (loadedTransactions != null) {
                         transactions.clear();
                         transactions.addAll(loadedTransactions);
-
-                        // Group transactions by date for section headers
-                        groupTransactionsByDate();
-
-                        // Update UI on main thread
-                        if (getActivity() != null) {
-                            getActivity().runOnUiThread(() -> {
-                                updateUIState();
-                                transactionAdapter.refreshData();
-                            });
-                        }
+                        
+                        // Process data in background thread
+                        new Thread(() -> {
+                            groupTransactionsByDate();
+                            
+                            // Update UI on main thread
+                            if (getActivity() != null) {
+                                getActivity().runOnUiThread(() -> {
+                                    updateEmptyState();
+                                    transactionAdapter.refreshData();
+                                });
+                            }
+                        }).start();
                     }
                 }
-            }
+            });
 
+        // Observe loading state
+        transactionRepository.getLoadingState().observe(getViewLifecycleOwner(), 
+            isLoading -> {
+                // Show/hide loading indicators
+                // You can add progress bar here
+            });
+
+        // Observe error messages
+        transactionRepository.getErrorMessage().observe(getViewLifecycleOwner(), 
+            error -> {                if (error != null && !error.isEmpty()) {
+                    Toast.makeText(getContext(), error, Toast.LENGTH_SHORT).show();
+                }
+            });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Real-time observer handles data updates automatically
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // Clean up repository resources
+        if (transactionRepository != null) {
+            transactionRepository.cleanup();        }
+    }    private void loadTransactions() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            Log.e(TAG, "User not authenticated");
+            Toast.makeText(getContext(), "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String userId = currentUser.getUid();
+        Log.d(TAG, "Loading transactions for user: " + userId);
+
+        // Use real-time repository with LiveData observer
+        transactionRepository.getTransactions(userId).observe(this, new Observer<List<Transaction>>() {
             @Override
-            public void onError(Exception e) {
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        Toast.makeText(getContext(), "Error loading transactions: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
+            public void onChanged(List<Transaction> loadedTransactions) {
+                if (loadedTransactions != null) {
+                    Log.d(TAG, "Received " + loadedTransactions.size() + " transactions");
+                    
+                    transactions.clear();
+                    transactions.addAll(loadedTransactions);
+
+                    // Process data in background thread for heavy operations
+                    new Thread(() -> {
+                        groupTransactionsByDate();
+                        
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                if (transactionAdapter != null) {
+                                    transactionAdapter.refreshData();
+                                }
+                                updateEmptyState();
+                                isDataLoaded = true;
+                                lastLoadTime = System.currentTimeMillis();
+                            });
+                        }
+                    }).start();
+                } else {
+                    Log.w(TAG, "No transactions received");
+                    updateEmptyState();
+                }
+            }
+        });
+
+        // Observe error state
+        transactionRepository.getErrorMessage().observe(this, new Observer<String>() {
+            @Override
+            public void onChanged(String error) {
+                if (error != null && !error.isEmpty()) {
+                    Toast.makeText(getContext(), "Error: " + error, Toast.LENGTH_SHORT).show();
                 }
             }
         });
     }
 
-    private void updateUIState() {
+    private void updateEmptyState() {
         // Show empty state if no transactions, otherwise show content
         if (transactions.isEmpty()) {
             emptyStateView.setVisibility(View.VISIBLE);
@@ -144,14 +219,22 @@ public class HistoryFragment extends Fragment {
             emptyStateView.setVisibility(View.GONE);
             contentView.setVisibility(View.VISIBLE);
         }
-    }
-
-    private void groupTransactionsByDate() {
+    }    private void groupTransactionsByDate() {
         groupedByDateTransactions.clear();
         SimpleDateFormat dateFormatter = new SimpleDateFormat("EEE, dd MMMM yyyy", Locale.getDefault());
 
         for (Transaction transaction : transactions) {
-            String dateKey = dateFormatter.format(transaction.getDate());
+            // Handle null dates gracefully
+            Date transactionDate = transaction.getDate();
+            String dateKey;
+            
+            if (transactionDate != null) {
+                dateKey = dateFormatter.format(transactionDate);
+            } else {
+                // Use current date for transactions with null dates
+                dateKey = dateFormatter.format(new Date());
+                Log.w(TAG, "Transaction with null date found, using current date: " + transaction.getId());
+            }
 
             if (!groupedByDateTransactions.containsKey(dateKey)) {
                 groupedByDateTransactions.put(dateKey, new ArrayList<>());
@@ -188,11 +271,26 @@ public class HistoryFragment extends Fragment {
                 // Add all transactions for this date
                 combinedList.addAll(entry.getValue());
             }
-        }
-
-        public void refreshData() {
-            processCombinedList();
-            notifyDataSetChanged();
+        }        public void refreshData() {
+            // Use background thread for heavy processing
+            new Thread(() -> {
+                List<Object> newCombinedList = new ArrayList<>();
+                
+                // Add items with headers efficiently
+                for (Map.Entry<String, List<Transaction>> entry : groupedByDateTransactions.entrySet()) {
+                    newCombinedList.add(entry.getKey());
+                    newCombinedList.addAll(entry.getValue());
+                }
+                
+                // Update UI on main thread
+                if (getActivity() != null) {
+                    getActivity().runOnUiThread(() -> {
+                        combinedList.clear();
+                        combinedList.addAll(newCombinedList);
+                        notifyDataSetChanged();
+                    });
+                }
+            }).start();
         }
 
         @Override

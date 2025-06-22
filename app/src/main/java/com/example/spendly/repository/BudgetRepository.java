@@ -6,56 +6,44 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.LruCache;
 
-import androidx.annotation.NonNull;
-
 import com.example.spendly.database.BudgetDatabaseHelper;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class BudgetRepository {
     private static final String TAG = "BudgetRepository";
+    
     // Singleton instance
     private static BudgetRepository instance;
     private final FirebaseFirestore db;
     private final FirebaseAuth auth;
     private final BudgetDatabaseHelper dbHelper;
 
-    // For background threading - using a thread pool for better performance
+    // For background threading
     private final ExecutorService executor;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    // Add caching to improve performance
+    // Cache
     private final LruCache<String, Map<String, Object>> budgetCache;
-    private final LruCache<String, Map<String, Object>> categoriesCache;
-    private final LruCache<String, Boolean> existsCache;
-
-    // Cache keys
+    private final LruCache<String, Boolean> existsCache;    // Cache keys
     private static final String TOTAL_BUDGET_KEY = "total_budget";
-    private static final String CATEGORIES_KEY = "categories";
     private static final String BUDGET_EXISTS_KEY = "budget_exists";
+    private static final String BUDGET_CATEGORIES_KEY = "budget_categories";
     private static final String CATEGORIES_EXISTS_KEY = "categories_exists";
-
     private static final int CACHE_SIZE = 4 * 1024 * 1024; // 4MB cache
 
     private BudgetRepository(Context context) {
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
         dbHelper = new BudgetDatabaseHelper(context.getApplicationContext());
-
-        // Create a fixed thread pool for optimized performance
-        executor = Executors.newFixedThreadPool(3); // Use 3 threads for database operations
-
-        // Initialize caches
+        executor = Executors.newFixedThreadPool(3);
         budgetCache = new LruCache<>(CACHE_SIZE);
-        categoriesCache = new LruCache<>(CACHE_SIZE);
         existsCache = new LruCache<>(CACHE_SIZE);
     }
 
@@ -80,41 +68,50 @@ public class BudgetRepository {
      * Saves total budget to both Firebase and local SQLite database
      */
     public void saveTotalBudget(Map<String, Object> budgetData, final BudgetCallback callback) {
+        android.util.Log.d(TAG, "saveTotalBudget() called");
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
+            android.util.Log.e(TAG, "User not logged in");
             callback.onError(new Exception("User not logged in"));
             return;
         }
 
         final String userId = currentUser.getUid();
+        android.util.Log.d(TAG, "Saving budget for user: " + userId);
+        android.util.Log.d(TAG, "Budget data: " + budgetData.toString());
 
         // Clear any cached data
         budgetCache.remove(getCacheKey(userId, TOTAL_BUDGET_KEY));
         existsCache.remove(getCacheKey(userId, BUDGET_EXISTS_KEY));
 
         // Save to Firebase first
+        android.util.Log.d(TAG, "Attempting to save to Firebase...");
         db.collection("users").document(userId)
                 .collection("budget").document("total_budget")
                 .set(budgetData)
                 .addOnSuccessListener(aVoid -> {
+                    android.util.Log.d(TAG, "✅ Firebase save successful, now saving to SQLite...");
                     // If Firebase save succeeds, save to SQLite on background thread
                     executor.execute(() -> {
                         try {
+                            android.util.Log.d(TAG, "Saving to SQLite database...");
                             dbHelper.saveTotalBudget(userId, budgetData);
+                            android.util.Log.d(TAG, "✅ SQLite save successful");
                             // Cache the result
                             budgetCache.put(getCacheKey(userId, TOTAL_BUDGET_KEY), budgetData);
                             existsCache.put(getCacheKey(userId, BUDGET_EXISTS_KEY), true);
 
                             // Return result on main thread
+                            android.util.Log.d(TAG, "Calling success callback...");
                             mainHandler.post(() -> callback.onSuccess(budgetData));
                         } catch (Exception e) {
-                            Log.e(TAG, "Error saving to SQLite: " + e.getMessage());
+                            android.util.Log.e(TAG, "❌ Error saving to SQLite: " + e.getMessage(), e);
                             mainHandler.post(() -> callback.onError(e));
                         }
                     });
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error saving to Firebase: " + e.getMessage());
+                    android.util.Log.e(TAG, "❌ Error saving to Firebase: " + e.getMessage(), e);
                     // Try to save to SQLite anyway for offline access
                     executor.execute(() -> {
                         try {
@@ -135,167 +132,7 @@ public class BudgetRepository {
     }
 
     /**
-     * Saves budget category to both Firebase and local SQLite database
-     */
-    public void saveBudgetCategory(String category, Map<String, Object> categoryData,
-                                   final BudgetCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
-            return;
-        }
-
-        final String userId = currentUser.getUid();
-
-        // Clear cached categories data
-        categoriesCache.remove(getCacheKey(userId, CATEGORIES_KEY));
-        existsCache.remove(getCacheKey(userId, CATEGORIES_EXISTS_KEY));
-
-        // Save to Firebase first
-        db.collection("users").document(userId)
-                .collection("budget").document("categories")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        Map<String, Object> categories = new HashMap<>();
-                        DocumentSnapshot document = task.getResult();
-
-                        if (document != null && document.exists() && document.getData() != null) {
-                            categories = document.getData();
-                        }
-
-                        // Add or update this category
-                        categories.put(category, categoryData);
-
-                        // Need to create a final copy of categories for use in lambda
-                        final Map<String, Object> finalCategories = categories;
-
-                        // Save updated categories to Firebase
-                        db.collection("users").document(userId)
-                                .collection("budget").document("categories")
-                                .set(finalCategories)
-                                .addOnSuccessListener(aVoid -> {
-                                    // Save to SQLite in background
-                                    executor.execute(() -> {
-                                        try {
-                                            // Use a more performant bulk save
-                                            dbHelper.saveBudgetCategories(userId, finalCategories);
-
-                                            // Cache the categories
-                                            categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), finalCategories);
-                                            existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
-
-                                            mainHandler.post(() -> callback.onSuccess(categoryData));
-                                        } catch (Exception e) {
-                                            mainHandler.post(() -> callback.onError(e));
-                                        }
-                                    });
-                                })
-                                .addOnFailureListener(e -> {
-                                    // Try to save to SQLite anyway
-                                    executor.execute(() -> {
-                                        try {
-                                            dbHelper.saveBudgetCategory(userId, category, categoryData);
-                                            Map<String, Object> result = new HashMap<>(categoryData);
-                                            result.put("offline_only", true);
-
-                                            // Update cache
-                                            Map<String, Object> cachedCategories = categoriesCache.get(getCacheKey(userId, CATEGORIES_KEY));
-                                            if (cachedCategories != null) {
-                                                cachedCategories.put(category, result);
-                                            } else {
-                                                Map<String, Object> newCachedCategories = new HashMap<>();
-                                                newCachedCategories.put(category, result);
-                                                cachedCategories = newCachedCategories;
-                                            }
-                                            categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), cachedCategories);
-                                            existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
-
-                                            mainHandler.post(() -> callback.onSuccess(result));
-                                        } catch (Exception ex) {
-                                            mainHandler.post(() -> callback.onError(ex));
-                                        }
-                                    });
-                                });
-                    } else {
-                        callback.onError(task.getException());
-                    }
-                });
-    }
-
-    /**
-     * Updates the remaining budget in Firebase and SQLite
-     */
-    public void updateRemainingBudget(double newRemainingBudget, String formattedRemaining,
-                                      final BudgetCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
-            return;
-        }
-
-        final String userId = currentUser.getUid();
-
-        // Clear budget cache
-        budgetCache.remove(getCacheKey(userId, TOTAL_BUDGET_KEY));
-
-        // Update in Firebase
-        db.collection("users").document(userId)
-                .collection("budget").document("total_budget")
-                .update("remaining_budget", newRemainingBudget,
-                        "remaining_formatted", formattedRemaining)
-                .addOnSuccessListener(aVoid -> {
-                    // Update in SQLite on background thread
-                    executor.execute(() -> {
-                        try {
-                            dbHelper.updateRemainingBudget(userId, newRemainingBudget, formattedRemaining);
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("remaining_budget", newRemainingBudget);
-                            result.put("remaining_formatted", formattedRemaining);
-
-                            // Update cache
-                            Map<String, Object> cachedBudget = budgetCache.get(getCacheKey(userId, TOTAL_BUDGET_KEY));
-                            if (cachedBudget != null) {
-                                cachedBudget.put("remaining_budget", newRemainingBudget);
-                                cachedBudget.put("remaining_formatted", formattedRemaining);
-                                budgetCache.put(getCacheKey(userId, TOTAL_BUDGET_KEY), cachedBudget);
-                            }
-
-                            mainHandler.post(() -> callback.onSuccess(result));
-                        } catch (Exception e) {
-                            mainHandler.post(() -> callback.onError(e));
-                        }
-                    });
-                })
-                .addOnFailureListener(e -> {
-                    // Try to update SQLite anyway
-                    executor.execute(() -> {
-                        try {
-                            dbHelper.updateRemainingBudget(userId, newRemainingBudget, formattedRemaining);
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("remaining_budget", newRemainingBudget);
-                            result.put("remaining_formatted", formattedRemaining);
-                            result.put("offline_only", true);
-
-                            // Update cache
-                            Map<String, Object> cachedBudget = budgetCache.get(getCacheKey(userId, TOTAL_BUDGET_KEY));
-                            if (cachedBudget != null) {
-                                cachedBudget.put("remaining_budget", newRemainingBudget);
-                                cachedBudget.put("remaining_formatted", formattedRemaining);
-                                cachedBudget.put("offline_only", true);
-                                budgetCache.put(getCacheKey(userId, TOTAL_BUDGET_KEY), cachedBudget);
-                            }
-
-                            mainHandler.post(() -> callback.onSuccess(result));
-                        } catch (Exception ex) {
-                            mainHandler.post(() -> callback.onError(ex));
-                        }
-                    });
-                });
-    }
-
-    /**
-     * Gets total budget data - checks cache first, then tries Firebase, then falls back to SQLite
+     * Get total budget from Firebase or local cache
      */
     public void getTotalBudget(final BudgetCallback callback) {
         FirebaseUser currentUser = auth.getCurrentUser();
@@ -307,242 +144,61 @@ public class BudgetRepository {
         final String userId = currentUser.getUid();
         final String cacheKey = getCacheKey(userId, TOTAL_BUDGET_KEY);
 
-        // First check if we have this in cache
+        // Check cache first
         Map<String, Object> cachedBudget = budgetCache.get(cacheKey);
         if (cachedBudget != null) {
             callback.onSuccess(cachedBudget);
             return;
         }
 
-        // Try to get from Firebase first
+        // Load from Firebase
         db.collection("users").document(userId)
                 .collection("budget").document("total_budget")
                 .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists() && document.getData() != null) {
-                        Map<String, Object> data = document.getData();
-
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists() && documentSnapshot.getData() != null) {
+                        Map<String, Object> data = documentSnapshot.getData();
                         // Cache the result
                         budgetCache.put(cacheKey, data);
                         existsCache.put(getCacheKey(userId, BUDGET_EXISTS_KEY), true);
 
-                        // Save the data to SQLite in the background for offline access
+                        // Save to SQLite for offline access
                         executor.execute(() -> dbHelper.saveTotalBudget(userId, data));
 
                         callback.onSuccess(data);
                     } else {
-                        // If not in Firebase, try to get from SQLite
+                        // Try loading from SQLite
                         executor.execute(() -> {
                             Map<String, Object> data = dbHelper.getTotalBudget(userId);
-
                             if (!data.isEmpty()) {
-                                data.put("offline_only", true);
-
                                 // Cache the result
                                 budgetCache.put(cacheKey, data);
                                 existsCache.put(getCacheKey(userId, BUDGET_EXISTS_KEY), true);
+                                
+                                mainHandler.post(() -> callback.onSuccess(data));
+                            } else {
+                                mainHandler.post(() -> callback.onError(new Exception("No budget data found")));
                             }
-
-                            mainHandler.post(() -> {
-                                if (!data.isEmpty()) {
-                                    callback.onSuccess(data);
-                                } else {
-                                    callback.onError(new Exception("No budget data found"));
-                                }
-                            });
                         });
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error getting data from Firebase: " + e.getMessage());
-
-                    // Try to get from SQLite as fallback
+                    // Try loading from SQLite as fallback
                     executor.execute(() -> {
                         Map<String, Object> data = dbHelper.getTotalBudget(userId);
-
                         if (!data.isEmpty()) {
-                            data.put("offline_only", true);
-
-                            // Cache the result
                             budgetCache.put(cacheKey, data);
-                            existsCache.put(getCacheKey(userId, BUDGET_EXISTS_KEY), true);
-                        }
-
-                        mainHandler.post(() -> {
-                            if (!data.isEmpty()) {
-                                callback.onSuccess(data);
-                            } else {
-                                callback.onError(e);
-                            }
-                        });
-                    });
-                });
-    }
-
-    /**
-     * Gets budget categories - checks cache first, then tries Firebase, falls back to SQLite
-     */
-    public void getBudgetCategories(final BudgetCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
-            return;
-        }
-
-        final String userId = currentUser.getUid();
-        final String cacheKey = getCacheKey(userId, CATEGORIES_KEY);
-
-        // First check if we have this in cache
-        Map<String, Object> cachedCategories = categoriesCache.get(cacheKey);
-        if (cachedCategories != null) {
-            callback.onSuccess(cachedCategories);
-            return;
-        }
-
-        // Try to get from Firebase first
-        db.collection("users").document(userId)
-                .collection("budget").document("categories")
-                .get()
-                .addOnSuccessListener(document -> {
-                    if (document.exists() && document.getData() != null) {
-                        Map<String, Object> data = document.getData();
-
-                        // Cache the result
-                        categoriesCache.put(cacheKey, data);
-                        existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
-
-                        // Save the data to SQLite in the background for offline access
-                        executor.execute(() -> dbHelper.saveBudgetCategories(userId, data));
-
-                        callback.onSuccess(data);
-                    } else {
-                        // If not in Firebase, try to get from SQLite
-                        executor.execute(() -> {
-                            Map<String, Object> data = dbHelper.getBudgetCategories(userId);
-
-                            if (!data.isEmpty()) {
-                                data.put("offline_only", true);
-
-                                // Cache the result
-                                categoriesCache.put(cacheKey, data);
-                                existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
-                            }
-
-                            mainHandler.post(() -> {
-                                if (!data.isEmpty()) {
-                                    callback.onSuccess(data);
-                                } else {
-                                    callback.onError(new Exception("No budget categories found"));
-                                }
-                            });
-                        });
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error getting categories from Firebase: " + e.getMessage());
-
-                    // Try to get from SQLite as fallback
-                    executor.execute(() -> {
-                        Map<String, Object> data = dbHelper.getBudgetCategories(userId);
-
-                        if (!data.isEmpty()) {
-                            data.put("offline_only", true);
-
-                            // Cache the result
-                            categoriesCache.put(cacheKey, data);
-                            existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
-                        }
-
-                        mainHandler.post(() -> {
-                            if (!data.isEmpty()) {
-                                callback.onSuccess(data);
-                            } else {
-                                callback.onError(e);
-                            }
-                        });
-                    });
-                });
-    }
-
-    /**
-     * Checks if the user has budget data - checks cache first, uses optimized query otherwise
-     */
-    public void checkBudgetExists(@NonNull final BudgetCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
-            return;
-        }
-
-        final String userId = currentUser.getUid();
-        final String cacheKey = getCacheKey(userId, BUDGET_EXISTS_KEY);
-
-        // Check cache first
-        Boolean existsInCache = existsCache.get(cacheKey);
-        if (existsInCache != null) {
-            Map<String, Object> result = new HashMap<>();
-            result.put("exists", existsInCache);
-            callback.onSuccess(result);
-            return;
-        }
-
-        // Use optimized exists query rather than fetching the whole document
-        db.collection("users").document(userId)
-                .collection("budget").document("total_budget")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        DocumentSnapshot document = task.getResult();
-                        boolean docExists = document != null && document.exists() && document.getData() != null;
-
-                        // Cache the result
-                        existsCache.put(cacheKey, docExists);
-
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("exists", docExists);
-
-                        if (docExists) {
-                            callback.onSuccess(result);
+                            mainHandler.post(() -> callback.onSuccess(data));
                         } else {
-                            // Check SQLite as fallback
-                            executor.execute(() -> {
-                                boolean localExists = dbHelper.hasBudgetData(userId);
-
-                                // Update cache
-                                existsCache.put(cacheKey, localExists);
-
-                                Map<String, Object> localResult = new HashMap<>();
-                                localResult.put("exists", localExists);
-                                if (localExists) {
-                                    localResult.put("offline_only", true);
-                                }
-
-                                mainHandler.post(() -> callback.onSuccess(localResult));
-                            });
+                            mainHandler.post(() -> callback.onError(e));
                         }
-                    } else {
-                        executor.execute(() -> {
-                            boolean localExists = dbHelper.hasBudgetData(userId);
-
-                            // Update cache
-                            existsCache.put(cacheKey, localExists);
-
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("exists", localExists);
-                            if (localExists) {
-                                result.put("offline_only", true);
-                            }
-
-                            mainHandler.post(() -> callback.onSuccess(result));
-                        });
-                    }
-                });
+                    });                });
     }
 
     /**
-     * Checks if the user has budget categories
+     * Check if budget categories exist in Firebase or local cache
      */
-    public void checkCategoriesExist(@NonNull final BudgetCallback callback) {
+    public void checkCategoriesExist(final BudgetCallback callback) {
         FirebaseUser currentUser = auth.getCurrentUser();
         if (currentUser == null) {
             callback.onError(new Exception("User not logged in"));
@@ -553,323 +209,104 @@ public class BudgetRepository {
         final String cacheKey = getCacheKey(userId, CATEGORIES_EXISTS_KEY);
 
         // Check cache first
-        Boolean existsInCache = existsCache.get(cacheKey);
-        if (existsInCache != null) {
+        Boolean cachedExists = existsCache.get(cacheKey);
+        if (cachedExists != null) {
             Map<String, Object> result = new HashMap<>();
-            result.put("exists", existsInCache);
+            result.put("exists", cachedExists);
             callback.onSuccess(result);
             return;
         }
 
-        // Use optimized exists query
+        // Check Firebase
         db.collection("users").document(userId)
                 .collection("budget").document("categories")
                 .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        DocumentSnapshot document = task.getResult();
-                        boolean docExists = document != null && document.exists() && document.getData() != null;
-
-                        // Cache the result
-                        existsCache.put(cacheKey, docExists);
-
+                .addOnSuccessListener(documentSnapshot -> {
+                    boolean exists = documentSnapshot.exists() && documentSnapshot.getData() != null;
+                    
+                    // Cache the result
+                    existsCache.put(cacheKey, exists);
+                    
+                    Map<String, Object> result = new HashMap<>();
+                    result.put("exists", exists);
+                    callback.onSuccess(result);
+                })
+                .addOnFailureListener(e -> {
+                    // Try checking SQLite as fallback
+                    executor.execute(() -> {
+                        Map<String, Object> data = dbHelper.getBudgetCategories(userId);
+                        boolean exists = !data.isEmpty();
+                        existsCache.put(cacheKey, exists);
+                        
                         Map<String, Object> result = new HashMap<>();
-                        result.put("exists", docExists);
+                        result.put("exists", exists);
+                        mainHandler.post(() -> callback.onSuccess(result));
+                    });
+                });
+    }
 
-                        if (docExists) {
-                            callback.onSuccess(result);
-                        } else {
-                            // Check SQLite as fallback
-                            executor.execute(() -> {
-                                boolean localExists = dbHelper.hasBudgetCategories(userId);
+    /**
+     * Get budget categories from Firebase or local cache
+     */
+    public void getBudgetCategories(final BudgetCallback callback) {
+        FirebaseUser currentUser = auth.getCurrentUser();
+        if (currentUser == null) {
+            callback.onError(new Exception("User not logged in"));
+            return;
+        }
 
-                                // Update cache
-                                existsCache.put(cacheKey, localExists);
+        final String userId = currentUser.getUid();
+        final String cacheKey = getCacheKey(userId, BUDGET_CATEGORIES_KEY);
 
-                                Map<String, Object> localResult = new HashMap<>();
-                                localResult.put("exists", localExists);
-                                if (localExists) {
-                                    localResult.put("offline_only", true);
-                                }
+        // Check cache first
+        Map<String, Object> cachedCategories = budgetCache.get(cacheKey);
+        if (cachedCategories != null) {
+            callback.onSuccess(cachedCategories);
+            return;
+        }
 
-                                mainHandler.post(() -> callback.onSuccess(localResult));
-                            });
-                        }
+        // Load from Firebase
+        db.collection("users").document(userId)
+                .collection("budget").document("categories")
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists() && documentSnapshot.getData() != null) {
+                        Map<String, Object> data = documentSnapshot.getData();
+                        // Cache the result
+                        budgetCache.put(cacheKey, data);
+                        existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
+
+                        // Save to SQLite for offline access
+                        executor.execute(() -> dbHelper.saveBudgetCategories(userId, data));
+
+                        callback.onSuccess(data);
                     } else {
+                        // Try loading from SQLite
                         executor.execute(() -> {
-                            boolean localExists = dbHelper.hasBudgetCategories(userId);
-
-                            // Update cache
-                            existsCache.put(cacheKey, localExists);
-
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("exists", localExists);
-                            if (localExists) {
-                                result.put("offline_only", true);
+                            Map<String, Object> data = dbHelper.getBudgetCategories(userId);
+                            if (!data.isEmpty()) {
+                                // Cache the result
+                                budgetCache.put(cacheKey, data);
+                                existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
+                                
+                                mainHandler.post(() -> callback.onSuccess(data));
+                            } else {
+                                mainHandler.post(() -> callback.onError(new Exception("No budget categories found")));
                             }
-
-                            mainHandler.post(() -> callback.onSuccess(result));
                         });
                     }
-                });
-    }
-
-    /**
-     * Syncs local data with Firebase when device comes online
-     */
-    public void syncWithFirebase(final BudgetCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
-            return;
-        }
-
-        final String userId = currentUser.getUid();
-
-        executor.execute(() -> {
-            try {
-                // Get data from local database
-                Map<String, Object> totalBudget = dbHelper.getTotalBudget(userId);
-                Map<String, Object> categories = dbHelper.getBudgetCategories(userId);
-
-                if (!totalBudget.isEmpty()) {
-                    // Sync total budget to Firebase
-                    db.collection("users").document(userId)
-                            .collection("budget").document("total_budget")
-                            .set(totalBudget);
-
-                    // Update cache
-                    budgetCache.put(getCacheKey(userId, TOTAL_BUDGET_KEY), totalBudget);
-                }
-
-                if (!categories.isEmpty()) {
-                    // Sync categories to Firebase
-                    db.collection("users").document(userId)
-                            .collection("budget").document("categories")
-                            .set(categories);
-
-                    // Update cache
-                    categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
-                }
-
-                mainHandler.post(() -> {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("sync_success", true);
-                    callback.onSuccess(result);
-                });
-
-            } catch (Exception e) {
-                mainHandler.post(() -> callback.onError(e));
-            }
-        });
-    }
-
-    /**
-     * Clears all cache to free memory
-     */
-    public void clearCache() {
-        budgetCache.evictAll();
-        categoriesCache.evictAll();
-        existsCache.evictAll();
-    }
-
-    /**
-     * Shutdown the executor service when app is closing to prevent memory leaks
-     */
-    public void shutdown() {
-        if (executor != null && !executor.isShutdown()) {
-            executor.shutdown();
-        }
-    }
-
-    /**
-     * Updates the 'spent' amount for a specific budget category
-     * This method is called when a new expense transaction is added
-     */
-    public void updateCategorySpent(String category, double amount, final BudgetCallback callback) {
-        FirebaseUser currentUser = auth.getCurrentUser();
-        if (currentUser == null) {
-            callback.onError(new Exception("User not logged in"));
-            return;
-        }
-
-        final String userId = currentUser.getUid();
-
-        // Clear cached categories data
-        categoriesCache.remove(getCacheKey(userId, CATEGORIES_KEY));
-
-        // First, get the current category data
-        db.collection("users").document(userId)
-                .collection("budget").document("categories")
-                .get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful()) {
-                        DocumentSnapshot document = task.getResult();
-                        if (document != null && document.exists() && document.getData() != null) {
-                            Map<String, Object> categories = document.getData();
-
-                            // Check if the category exists
-                            if (categories.containsKey(category)) {
-                                @SuppressWarnings("unchecked")
-                                Map<String, Object> categoryData = (Map<String, Object>) categories.get(category);
-
-                                // Calculate the new spent amount
-                                double currentSpent = 0;
-                                if (categoryData.containsKey("spent")) {
-                                    if (categoryData.get("spent") instanceof Double) {
-                                        currentSpent = (Double) categoryData.get("spent");
-                                    } else if (categoryData.get("spent") instanceof Long) {
-                                        currentSpent = ((Long) categoryData.get("spent")).doubleValue();
-                                    }
-                                }
-
-                                double newSpent = currentSpent + amount;
-                                categoryData.put("spent", newSpent);
-
-                                // Format the spent amount for display
-                                java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
-                                String formattedSpent = formatter.format(newSpent)
-                                        .replace("Rp", "")
-                                        .trim();
-                                categoryData.put("formatted_spent", formattedSpent);
-
-                                // Update the category in the map
-                                categories.put(category, categoryData);
-
-                                // Update the document in Firestore
-                                db.collection("users").document(userId)
-                                        .collection("budget").document("categories")
-                                        .set(categories)
-                                        .addOnSuccessListener(aVoid -> {
-                                            // Also update in local database
-                                            executor.execute(() -> {
-                                                try {
-                                                    dbHelper.saveBudgetCategories(userId, categories);
-
-                                                    // Update cache
-                                                    categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
-
-                                                    // Return success
-                                                    Map<String, Object> result = new HashMap<>();
-                                                    result.put("category", category);
-                                                    result.put("spent", newSpent);
-                                                    result.put("formatted_spent", formattedSpent);
-
-                                                    mainHandler.post(() -> callback.onSuccess(result));
-                                                } catch (Exception e) {
-                                                    mainHandler.post(() -> callback.onError(e));
-                                                }
-                                            });
-                                        })
-                                        .addOnFailureListener(e -> {
-                                            // Try to save to SQLite anyway for offline access
-                                            executor.execute(() -> {
-                                                try {
-                                                    dbHelper.saveBudgetCategories(userId, categories);
-
-                                                    Map<String, Object> result = new HashMap<>();
-                                                    result.put("category", category);
-                                                    result.put("spent", newSpent);
-                                                    result.put("formatted_spent", formattedSpent);
-                                                    result.put("offline_only", true);
-
-                                                    mainHandler.post(() -> callback.onSuccess(result));
-                                                } catch (Exception ex) {
-                                                    mainHandler.post(() -> callback.onError(ex));
-                                                }
-                                            });
-                                        });
-                            } else {
-                                // Category doesn't exist yet, create it with initial spent amount
-                                Map<String, Object> newCategoryData = new HashMap<>();
-                                newCategoryData.put("amount", 0.0);
-                                newCategoryData.put("spent", amount);
-                                newCategoryData.put("formatted_amount", "0");
-
-                                // Format the spent amount
-                                java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
-                                String formattedSpent = formatter.format(amount)
-                                        .replace("Rp", "")
-                                        .trim();
-                                newCategoryData.put("formatted_spent", formattedSpent);
-                                newCategoryData.put("date_added", new java.util.Date().toString());
-
-                                // Add to categories
-                                categories.put(category, newCategoryData);
-
-                                // Update Firestore
-                                db.collection("users").document(userId)
-                                        .collection("budget").document("categories")
-                                        .set(categories)
-                                        .addOnSuccessListener(aVoid -> {
-                                            executor.execute(() -> {
-                                                try {
-                                                    dbHelper.saveBudgetCategories(userId, categories);
-
-                                                    // Update cache
-                                                    categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
-
-                                                    Map<String, Object> result = new HashMap<>();
-                                                    result.put("category", category);
-                                                    result.put("spent", amount);
-                                                    result.put("formatted_spent", formattedSpent);
-
-                                                    mainHandler.post(() -> callback.onSuccess(result));
-                                                } catch (Exception e) {
-                                                    mainHandler.post(() -> callback.onError(e));
-                                                }
-                                            });
-                                        })
-                                        .addOnFailureListener(e -> callback.onError(e));
-                            }
+                })
+                .addOnFailureListener(e -> {
+                    // Try loading from SQLite as fallback
+                    executor.execute(() -> {
+                        Map<String, Object> data = dbHelper.getBudgetCategories(userId);
+                        if (!data.isEmpty()) {
+                            budgetCache.put(cacheKey, data);
+                            mainHandler.post(() -> callback.onSuccess(data));
                         } else {
-                            // No categories document yet, create it with this category
-                            Map<String, Object> newCategoryData = new HashMap<>();
-                            newCategoryData.put("amount", 0.0);
-                            newCategoryData.put("spent", amount);
-                            newCategoryData.put("formatted_amount", "0");
-
-                            // Format the spent amount
-                            java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("in", "ID"));
-                            String formattedSpent = formatter.format(amount)
-                                    .replace("Rp", "")
-                                    .trim();
-                            newCategoryData.put("formatted_spent", formattedSpent);
-                            newCategoryData.put("date_added", new java.util.Date().toString());
-
-                            // Create categories map
-                            Map<String, Object> categories = new HashMap<>();
-                            categories.put(category, newCategoryData);
-
-                            // Save to Firestore
-                            db.collection("users").document(userId)
-                                    .collection("budget").document("categories")
-                                    .set(categories)
-                                    .addOnSuccessListener(aVoid -> {
-                                        executor.execute(() -> {
-                                            try {
-                                                dbHelper.saveBudgetCategories(userId, categories);
-
-                                                // Update cache
-                                                categoriesCache.put(getCacheKey(userId, CATEGORIES_KEY), categories);
-                                                existsCache.put(getCacheKey(userId, CATEGORIES_EXISTS_KEY), true);
-
-                                                Map<String, Object> result = new HashMap<>();
-                                                result.put("category", category);
-                                                result.put("spent", amount);
-                                                result.put("formatted_spent", formattedSpent);
-
-                                                mainHandler.post(() -> callback.onSuccess(result));
-                                            } catch (Exception e) {
-                                                mainHandler.post(() -> callback.onError(e));
-                                            }
-                                        });
-                                    })
-                                    .addOnFailureListener(e -> callback.onError(e));
+                            mainHandler.post(() -> callback.onError(e));
                         }
-                    } else {
-                        callback.onError(task.getException());
-                    }
+                    });
                 });
     }
 }
