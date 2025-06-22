@@ -58,6 +58,10 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
     private double remainingBudget = 0.0;
     private boolean isOfflineMode = false;
 
+    // Real-time listeners for budget updates
+    private com.google.firebase.firestore.ListenerRegistration budgetListener;
+    private com.google.firebase.firestore.ListenerRegistration categoriesListener;
+
     public BudgetFragment() {
         // Required empty public constructor
     }
@@ -87,8 +91,7 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
         setupRecyclerView();
         setClickListeners();
 
-        return rootView;
-    }
+        return rootView;    }
 
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
@@ -99,7 +102,12 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
         if (loadingProgressBar != null) {
             loadingProgressBar.setVisibility(View.VISIBLE);
         }
-    }    // Add caching variables
+        
+        // Setup real-time listeners for automatic updates
+        setupRealtimeBudgetListeners();
+    }
+
+    // Add caching variables
     private boolean isDataLoaded = false;
     private long lastLoadTime = 0;
     private static final long CACHE_DURATION = 30000; // 30 seconds cache
@@ -544,6 +552,114 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
 
             // TODO: Launch AddTransactionActivity with category pre-selected
             Toast.makeText(getContext(), "Add expense for " + category.getCategoryName(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Setup real-time Firestore listeners for budget data
+     */
+    private void setupRealtimeBudgetListeners() {
+        FirebaseUser currentUser = mAuth.getCurrentUser();
+        if (currentUser == null) {
+            return;
+        }
+
+        // Listen for total budget changes
+        budgetListener = db.collection("users")
+                .document(currentUser.getUid())
+                .collection("budget")
+                .document("total_budget")
+                .addSnapshotListener((documentSnapshot, e) -> {
+                    if (e != null) {
+                        return;
+                    }
+
+                    if (documentSnapshot != null && documentSnapshot.exists()) {
+                        Map<String, Object> data = documentSnapshot.getData();
+                        if (data != null) {
+                            loadTotalBudgetData(data);
+                            updateBudgetUI();
+                        }
+                    }
+                });
+
+        // Listen for budget categories changes
+        categoriesListener = db.collection("users")
+                .document(currentUser.getUid())
+                .collection("budget")
+                .whereNotEqualTo("category", null)
+                .addSnapshotListener((querySnapshot, e) -> {
+                    if (e != null) {
+                        return;
+                    }
+
+                    if (querySnapshot != null && !querySnapshot.isEmpty()) {
+                        Map<String, Object> categoriesData = new HashMap<>();
+                        categoriesData.put("categories", querySnapshot.getDocuments());
+                        loadBudgetCategories(categoriesData);
+                        updateCategoriesUI();
+                    }
+                });
+    }
+
+    /**
+     * Update budget UI elements
+     */
+    private void updateBudgetUI() {
+        if (!isAdded()) return;
+
+        if (tvTotalBudget != null) {
+            tvTotalBudget.setText(String.format("From Rp%,.0f", totalBudget));
+        }
+        if (tvRemainingBudget != null) {
+            tvRemainingBudget.setText(String.format("Rp%,.0f", remainingBudget));
+        }
+        if (tvUsedBudget != null) {
+            tvUsedBudget.setText(String.format("Used Rp%,.0f", usedBudget));
+        }
+
+        // Update progress bar
+        if (progressBudget != null && totalBudget > 0) {
+            int progressPercentage = (int) ((usedBudget / totalBudget) * 100);
+            progressBudget.setProgress(Math.min(progressPercentage, 100));
+        }
+
+        // Update budget status
+        if (tvBudgetStatus != null) {
+            if (remainingBudget < 0) {
+                tvBudgetStatus.setText("Over budget!");
+                tvBudgetStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+            } else if (remainingBudget < totalBudget * 0.1) {
+                tvBudgetStatus.setText("Low budget remaining");
+                tvBudgetStatus.setTextColor(getResources().getColor(android.R.color.holo_orange_dark));
+            } else {
+                tvBudgetStatus.setText("Budget on track");
+                tvBudgetStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+            }
+        }
+    }
+
+    /**
+     * Update categories UI
+     */
+    private void updateCategoriesUI() {
+        if (!isAdded()) return;
+
+        if (categoryAdapter != null) {
+            categoryAdapter.notifyDataSetChanged();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        
+        // Clean up real-time listeners
+        if (budgetListener != null) {
+            budgetListener.remove();
+        }
+        if (categoriesListener != null) {
+            categoriesListener.remove();
         }
     }
 }

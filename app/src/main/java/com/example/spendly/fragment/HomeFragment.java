@@ -69,6 +69,7 @@ public class HomeFragment extends Fragment {
     private ListenerRegistration userBalanceListener;
     private ListenerRegistration savingsListener;
     private ListenerRegistration transactionsListener;
+    private ListenerRegistration budgetListener; // New budget listener
 
     // Data values - Enhanced with real-time tracking
     private double availableBalance = 0.0;
@@ -267,6 +268,34 @@ public class HomeFragment extends Fragment {
                         }
                     });
 
+            // Observe budget data with real-time updates
+            mFirestore.collection("users")
+                    .document(currentUser.getUid())
+                    .collection("budget")
+                    .document("total_budget")
+                    .addSnapshotListener((documentSnapshot, e) -> {
+                        if (e != null) {
+                            Log.e(TAG, "Error in budget listener", e);
+                            return;
+                        }
+
+                        if (documentSnapshot != null && documentSnapshot.exists()) {
+                            // Update budget values
+                            if (documentSnapshot.getData() != null) {
+                                Map<String, Object> budgetData = documentSnapshot.getData();
+                                extractBudgetData(budgetData);
+                                Log.d(TAG, "Budget data updated: " +
+                                        "Income: Rp" + formatNumber(totalIncome) +
+                                        ", Budget: Rp" + formatNumber(totalBudget) +
+                                        ", Remaining: Rp" + formatNumber(remainingBudget));
+                            } else {
+                                Log.w(TAG, "Budget document data is null");
+                            }
+                        } else {
+                            Log.w(TAG, "Budget document does not exist");
+                        }
+                    });
+
             Log.d(TAG, "✅ Real-time observers setup completed successfully");
 
         } catch (Exception e) {
@@ -314,6 +343,9 @@ public class HomeFragment extends Fragment {
 
         // 3. Listen to transaction changes
         setupTransactionsListener();
+
+        // 4. Listen to budget changes
+        setupBudgetListener();
 
         Log.d(TAG, "All real-time listeners setup completed");
     }
@@ -1092,6 +1124,10 @@ public class HomeFragment extends Fragment {
             transactionsListener.remove();
             Log.d(TAG, "Transactions listener removed");
         }
+        if (budgetListener != null) {
+            budgetListener.remove();
+            Log.d(TAG, "Budget listener removed");
+        }
 
         // Clean up real-time repositories
         if (transactionRepository != null) {
@@ -1158,6 +1194,7 @@ public class HomeFragment extends Fragment {
         Log.d(TAG, "userBalanceListener: " + (userBalanceListener != null ? "ACTIVE" : "NULL"));
         Log.d(TAG, "savingsListener: " + (savingsListener != null ? "ACTIVE" : "NULL"));
         Log.d(TAG, "transactionsListener: " + (transactionsListener != null ? "ACTIVE" : "NULL"));
+        Log.d(TAG, "budgetListener: " + (budgetListener != null ? "ACTIVE" : "NULL"));
         Log.d(TAG, "transactionRepository: " + (transactionRepository != null ? "INITIALIZED" : "NULL"));
         Log.d(TAG, "savingsRepository: " + (savingsRepository != null ? "INITIALIZED" : "NULL"));
         Log.d(TAG, "currentUser: " + (currentUser != null ? currentUser.getEmail() : "NULL"));
@@ -1192,6 +1229,10 @@ public class HomeFragment extends Fragment {
             transactionsListener.remove();
             transactionsListener = null;
         }
+        if (budgetListener != null) {
+            budgetListener.remove();
+            budgetListener = null;
+        }
         
         // Setup again
         if (currentUser != null) {
@@ -1202,7 +1243,54 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    // ...existing code...
+    /**
+     * ✅ Setup real-time budget data listener
+     */
+    private void setupBudgetListener() {
+        if (currentUser == null) {
+            Log.e(TAG, "Cannot setup budget listener - no current user");
+            return;
+        }
+
+        Log.d(TAG, "=== SETTING UP BUDGET LISTENER ===");
+        
+        budgetListener = mFirestore.collection("users")
+                .document(currentUser.getUid())
+                .collection("budget")
+                .document("total_budget")
+                .addSnapshotListener((documentSnapshot, e) -> {
+                    if (e != null) {
+                        Log.e(TAG, "❌ Budget listener error", e);
+                        return;
+                    }
+
+                    if (documentSnapshot != null && documentSnapshot.exists()) {
+                        Log.d(TAG, "🔄 BUDGET DATA CHANGED - Real-time update");
+                        
+                        Map<String, Object> budgetData = documentSnapshot.getData();
+                        if (budgetData != null) {
+                            // Extract budget values
+                            extractBudgetData(budgetData);
+                            
+                            Log.d(TAG, "Budget updated:");
+                            Log.d(TAG, "- Total Budget: Rp" + formatNumber(totalBudget));
+                            Log.d(TAG, "- Remaining Budget: Rp" + formatNumber(remainingBudget));
+                            Log.d(TAG, "- Monthly Income: Rp" + formatNumber(totalIncome));
+                            
+                            // Update UI immediately
+                            updateUI();
+                        }
+                    } else {
+                        Log.d(TAG, "No budget data found or document deleted");
+                        // Reset budget values
+                        totalBudget = 0.0;
+                        remainingBudget = 0.0;
+                        updateUI();
+                    }
+                });
+
+        Log.d(TAG, "✅ Budget listener setup completed");
+    }
 }    /*     * ===============================================================================================     * BALANCE UPDATE FLOW DOCUMENTATION     * ===============================================================================================     *      * PROBLEM SOLVED: Available balance tidak ter-update di HomeFragment setelah transaksi     *      * FLOW YANG BENAR:     * 1. User melakukan transaksi di AddTransactionActivity     * 2. AddTransactionActivity.updateUserBalance() mengupdate currentBalance di Firestore users document     * 3. HomeFragment.setupUserBalanceListener() mendeteksi perubahan currentBalance secara real-time     * 4. HomeFragment.updateBalanceAndOutcome() mengupdate UI dengan balance yang baru     *      * PENYEBAB MASALAH SEBELUMNYA:     * - HomeFragment menggunakan effectiveBalance = availableBalance - totalSavingsAmount     * - Padahal availableBalance sudah adalah balance final yang mencakup semua transaksi     * - totalSavingsAmount seharusnya hanya untuk perhitungan outcome, bukan untuk mengurangi balance display     *      * SOLUSI YANG DITERAPKAN:     * - HomeFragment sekarang menampilkan availableBalance langsung (tanpa dikurangi savings)     * - availableBalance di HomeFragment di-update otomatis melalui setupUserBalanceListener()     * - Real-time listener sudah bekerja dengan sempurna     *      * VERIFIKASI:     * 1. Check log "🔄 USER BALANCE CHANGED" saat melakukan transaksi     * 2. Check log "✅ Balance updated to" untuk memastikan UI ter-update     * 3. Check balance di UI HomeFragment harus langsung berubah setelah transaksi     * ===============================================================================================     */
 
 /*

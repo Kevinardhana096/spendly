@@ -131,7 +131,9 @@ public class AddTransactionActivity extends AppCompatActivity {
                         public void onSuccess(Map<String, Object> categoriesData) {
                             // Convert the categories data to a list of BudgetCategory objects
                             processBudgetCategories(categoriesData);
-                        }                        @Override
+                        }
+
+                        @Override
                         public void onError(String error) {
                             // Show only General card if error loading categories
                             Log.e(TAG, "Error loading budget categories: " + error);
@@ -140,14 +142,16 @@ public class AddTransactionActivity extends AppCompatActivity {
 
                         @Override
                         public void onError(Exception e) {
-                            
+
                         }
                     });
                 } else {
                     Log.i(TAG, "No budget categories found, showing only General category");
                     showOnlyGeneralCategory();
                 }
-            }            @Override
+            }
+
+            @Override
             public void onError(String error) {
                 Log.e(TAG, "Error checking budget categories: " + error);
                 showOnlyGeneralCategory();
@@ -159,6 +163,7 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
         });
     }
+
     private void showOnlyGeneralCategory() {
         runOnUiThread(() -> {
             hasBudgetCategories = false;
@@ -175,7 +180,6 @@ public class AddTransactionActivity extends AppCompatActivity {
             selectedCategory = "General";
         });
     }
-
 
     private void showBudgetCategories() {
         runOnUiThread(() -> {
@@ -285,7 +289,8 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable s) {
-                if (isEditing) return;
+                if (isEditing)
+                    return;
 
                 try {
                     isEditing = true;
@@ -318,7 +323,8 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
         };
 
-        // Save the TextWatcher as a tag on the EditText so we can remove it later if needed
+        // Save the TextWatcher as a tag on the EditText so we can remove it later if
+        // needed
         etAmount.setTag(watcher);
         etAmount.addTextChangedListener(watcher);
     }
@@ -396,8 +402,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                     categoryToUse,
                     "", // Empty account type
                     selectedDate,
-                    transactionType
-            );
+                    transactionType);
 
             // Format as currency for display
             String formattedAmount = currencyFormatter.format(amount);
@@ -605,7 +610,8 @@ public class AddTransactionActivity extends AppCompatActivity {
             // Add vibration feedback with proper API handling
             try {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    android.os.VibrationEffect effect = android.os.VibrationEffect.createOneShot(300, android.os.VibrationEffect.DEFAULT_AMPLITUDE);
+                    android.os.VibrationEffect effect = android.os.VibrationEffect.createOneShot(300,
+                            android.os.VibrationEffect.DEFAULT_AMPLITUDE);
                     android.os.Vibrator vibrator = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
                     if (vibrator != null && vibrator.hasVibrator()) {
                         vibrator.vibrate(effect);
@@ -650,7 +656,9 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         // ✅ CRITICAL: Save to Firestore with current timestamp for real-time detection
         saveTransactionToFirestore(transaction, addMore);
-    }    private void saveTransactionToFirestore(Transaction transaction, boolean addMore) {
+    }
+
+    private void saveTransactionToFirestore(Transaction transaction, boolean addMore) {
         String userId = FirebaseAuth.getInstance().getUid();
         if (userId == null) {
             Log.e(TAG, "❌ Cannot save transaction - user not logged in");
@@ -704,48 +712,217 @@ public class AddTransactionActivity extends AppCompatActivity {
 
                         // Update user balance
                         updateUserBalance(transaction, new TransactionRepository.TransactionCallback() {
-                        @Override
-                        public void onSuccess(Map<String, Object> data) {
-                            Log.d(TAG, "✅ User balance updated successfully");
+                            @Override
+                            public void onSuccess(Map<String, Object> data) {
+                                Log.d(TAG, "✅ User balance updated successfully");
 
-                            runOnUiThread(() -> {
-                                String message = String.format("%s transaction of %s saved successfully!",
-                                        transaction.getType(), formatCurrency(transaction.getAmount()));
-                                Toast.makeText(AddTransactionActivity.this, message, Toast.LENGTH_SHORT).show();
+                                // Update budget progress if it's an expense transaction
+                                if ("expense".equalsIgnoreCase(transaction.getType())) {
+                                    updateBudgetProgress(transaction, new TransactionRepository.TransactionCallback() {
+                                        @Override
+                                        public void onSuccess(Map<String, Object> budgetData) {
+                                            Log.d(TAG, "✅ Budget progress updated successfully");
+                                            runOnUiThread(() -> {
+                                                String message = String.format(
+                                                        "%s transaction of %s saved successfully!",
+                                                        transaction.getType(), formatCurrency(transaction.getAmount()));
+                                                Toast.makeText(AddTransactionActivity.this, message, Toast.LENGTH_SHORT)
+                                                        .show();
 
-                                Log.d(TAG, "✅ Transaction process completed for nowriafisda");
-                                handleTransactionSaveComplete(addMore);
-                            });
-                        }
+                                                Log.d(TAG, "✅ Transaction process completed with budget update");
+                                                handleTransactionSaveComplete(addMore);
+                                            });
+                                        }
 
-                        @Override
-                        public void onError(Exception e) {
-                            Log.e(TAG, "❌ Error updating user balance", e);
-                            runOnUiThread(() -> {
-                                Toast.makeText(AddTransactionActivity.this,
-                                        "Transaction saved but balance update failed", Toast.LENGTH_SHORT).show();
-                                handleTransactionSaveComplete(addMore);
-                            });
-                        }
-                    });                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "❌ ERROR SAVING TRANSACTION", e);
-                    Log.e(TAG, "User: " + userId);
-                    Log.e(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
-                    Log.e(TAG, "Error details: " + e.getMessage());
+                                        @Override
+                                        public void onError(Exception e) {
+                                            Log.w(TAG, "⚠️ Budget progress update failed, but transaction was saved",
+                                                    e);
+                                            runOnUiThread(() -> {
+                                                String message = String.format(
+                                                        "%s transaction of %s saved successfully!",
+                                                        transaction.getType(), formatCurrency(transaction.getAmount()));
+                                                Toast.makeText(AddTransactionActivity.this, message, Toast.LENGTH_SHORT)
+                                                        .show();
+                                                handleTransactionSaveComplete(addMore);
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    // For income transactions, no budget update needed
+                                    runOnUiThread(() -> {
+                                        String message = String.format("%s transaction of %s saved successfully!",
+                                                transaction.getType(), formatCurrency(transaction.getAmount()));
+                                        Toast.makeText(AddTransactionActivity.this, message, Toast.LENGTH_SHORT).show();
 
-                    runOnUiThread(() -> {
-                        Toast.makeText(this, "Failed to save transaction: " + e.getMessage(),
-                                Toast.LENGTH_LONG).show();
+                                        Log.d(TAG, "✅ Transaction process completed");
+                                        handleTransactionSaveComplete(addMore);
+                                    });
+                                }
+                            }
+
+                            @Override
+                            public void onError(Exception e) {
+                                Log.e(TAG, "❌ Error updating user balance", e);
+                                runOnUiThread(() -> {
+                                    Toast.makeText(AddTransactionActivity.this,
+                                            "Transaction saved but balance update failed", Toast.LENGTH_SHORT).show();
+                                    handleTransactionSaveComplete(addMore);
+                                });
+                            }
+                        });
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "❌ ERROR SAVING TRANSACTION", e);
+                        Log.e(TAG, "User: " + userId);
+                        Log.e(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
+                        Log.e(TAG, "Error details: " + e.getMessage());
+
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Failed to save transaction: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        });
                     });
-                });
-                
+
         } catch (Exception e) {
             Log.e(TAG, "❌ EXCEPTION in saveTransactionToFirestore", e);
-            Toast.makeText(this, "Error preparing transaction data: " + e.getMessage(), 
+            Toast.makeText(this, "Error preparing transaction data: " + e.getMessage(),
                     Toast.LENGTH_SHORT).show();
         }
     }
+
+    /**
+     * Update budget progress when expense transaction is added
+     */
+    private void updateBudgetProgress(Transaction transaction,
+            final TransactionRepository.TransactionCallback callback) {
+        if (!"expense".equalsIgnoreCase(transaction.getType())) {
+            // Only update budget for expenses
+            callback.onSuccess(new HashMap<>());
+            return;
+        }
+
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId == null) {
+            callback.onError(new Exception("User not logged in"));
+            return;
+        }
+
+        Log.d(TAG, "=== UPDATING BUDGET PROGRESS ===");
+        Log.d(TAG, "Category: " + transaction.getCategory());
+        Log.d(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
+
+        // Initialize BudgetRepository if not already done
+        if (budgetRepository == null) {
+            budgetRepository = BudgetRepository.getInstance(this);
+        }
+
+        // Update category spent amount
+        budgetRepository.updateCategorySpent(
+                transaction.getCategory(),
+                transaction.getAmount(),
+                new BudgetRepository.BudgetCallback() {
+                    @Override
+                    public void onSuccess(Map<String, Object> data) {
+                        Log.d(TAG, "✅ Category budget updated successfully for: " + transaction.getCategory());
+
+                        // Also update total remaining budget
+                        updateTotalRemainingBudget(transaction.getAmount(), callback);
+                    }
+
+                    @Override
+                    public void onError(String error) {
+                        Log.w(TAG, "⚠️ Failed to update category budget: " + error);
+                        // Still try to update total budget
+                        updateTotalRemainingBudget(transaction.getAmount(), callback);
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        Log.w(TAG, "⚠️ Failed to update category budget", e);
+                        // Still try to update total budget
+                        updateTotalRemainingBudget(transaction.getAmount(), callback);
+                    }
+                });
+    }
+
+    /**
+     * Update total remaining budget
+     */
+    private void updateTotalRemainingBudget(double expenseAmount,
+            final TransactionRepository.TransactionCallback callback) {
+        String userId = FirebaseAuth.getInstance().getUid();
+        if (userId == null) {
+            callback.onError(new Exception("User not logged in"));
+            return;
+        }
+
+        // Get current total budget data
+        budgetRepository.getTotalBudget(new BudgetRepository.BudgetCallback() {
+            @Override
+            public void onSuccess(Map<String, Object> totalBudgetData) {
+                // Extract current remaining budget
+                double currentRemainingBudget = 0.0;
+                if (totalBudgetData.containsKey("remaining_budget")) {
+                    if (totalBudgetData.get("remaining_budget") instanceof Double) {
+                        currentRemainingBudget = (Double) totalBudgetData.get("remaining_budget");
+                    } else if (totalBudgetData.get("remaining_budget") instanceof Long) {
+                        currentRemainingBudget = ((Long) totalBudgetData.get("remaining_budget")).doubleValue();
+                    }
+                }
+
+                // Calculate new remaining budget
+                double newRemainingBudget = currentRemainingBudget - expenseAmount;
+
+                Log.d(TAG, "Updating total budget: " + formatNumber(currentRemainingBudget) + " - "
+                        + formatNumber(expenseAmount) + " = " + formatNumber(newRemainingBudget));
+
+                // Format for display
+                NumberFormat formatter = NumberFormat.getInstance(new Locale("in", "ID"));
+                String formattedRemaining = formatter.format(newRemainingBudget);
+
+                // Update the remaining budget
+                budgetRepository.updateRemainingBudget(
+                        newRemainingBudget,
+                        formattedRemaining,
+                        new BudgetRepository.BudgetCallback() {
+                            @Override
+                            public void onSuccess(Map<String, Object> data) {
+                                Log.d(TAG, "✅ Total remaining budget updated successfully");
+                                Map<String, Object> result = new HashMap<>();
+                                result.put("newRemainingBudget", newRemainingBudget);
+                                result.put("expenseAmount", expenseAmount);
+                                callback.onSuccess(result);
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                Log.e(TAG, "❌ Failed to update total remaining budget: " + error);
+                                callback.onError(new Exception("Failed to update remaining budget: " + error));
+                            }
+
+                            @Override
+                            public void onError(Exception e) {
+                                Log.e(TAG, "❌ Failed to update total remaining budget", e);
+                                callback.onError(e);
+                            }
+                        });
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "❌ Failed to get total budget data: " + error);
+                callback.onError(new Exception("Failed to get budget data: " + error));
+            }
+
+            @Override
+            public void onError(Exception e) {
+                Log.e(TAG, "❌ Failed to get total budget data", e);
+                callback.onError(e);
+            }
+        });
+    }
+
     private String formatNumber(double amount) {
         NumberFormat formatter = NumberFormat.getInstance(new Locale("in", "ID"));
         return formatter.format(amount);
@@ -754,12 +931,13 @@ public class AddTransactionActivity extends AppCompatActivity {
     private String formatCurrency(double amount) {
         NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
         return formatter.format(amount);
-    }
-
-    /**
+    }    /**
      * Handle completion of transaction save
      */
     private void handleTransactionSaveComplete(boolean addMore) {
+        // Set result to indicate transaction was successfully added
+        setResult(RESULT_OK);
+        
         if (!addMore) {
             finish();
         } else {
@@ -796,9 +974,10 @@ public class AddTransactionActivity extends AppCompatActivity {
                 .document(userId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {                        // Get current balance
+                    if (documentSnapshot.exists()) { // Get current balance
                         Double currentBalance = documentSnapshot.getDouble("currentBalance");
-                        if (currentBalance == null) currentBalance = 0.0;
+                        if (currentBalance == null)
+                            currentBalance = 0.0;
 
                         Log.d(TAG, "=== UPDATING USER BALANCE ===");
                         Log.d(TAG, "Current balance: Rp" + formatNumber(currentBalance));
@@ -809,10 +988,12 @@ public class AddTransactionActivity extends AppCompatActivity {
                         double newBalance;
                         if ("expense".equalsIgnoreCase(transaction.getType())) {
                             newBalance = currentBalance - transaction.getAmount();
-                            Log.d(TAG, "Expense: " + formatNumber(currentBalance) + " - " + formatNumber(transaction.getAmount()) + " = " + formatNumber(newBalance));
+                            Log.d(TAG, "Expense: " + formatNumber(currentBalance) + " - "
+                                    + formatNumber(transaction.getAmount()) + " = " + formatNumber(newBalance));
                         } else { // Income transaction
                             newBalance = currentBalance + transaction.getAmount();
-                            Log.d(TAG, "Income: " + formatNumber(currentBalance) + " + " + formatNumber(transaction.getAmount()) + " = " + formatNumber(newBalance));
+                            Log.d(TAG, "Income: " + formatNumber(currentBalance) + " + "
+                                    + formatNumber(transaction.getAmount()) + " = " + formatNumber(newBalance));
                         }
 
                         Log.d(TAG, "New balance to save: Rp" + formatNumber(newBalance));
@@ -861,7 +1042,8 @@ public class AddTransactionActivity extends AppCompatActivity {
         // Add other budget categories if they exist
         for (Map.Entry<String, Object> entry : categoriesData.entrySet()) {
             String categoryName = entry.getKey();
-            if (categoryName.equals("offline_only") || categoryName.equals("General")) continue;
+            if (categoryName.equals("offline_only") || categoryName.equals("General"))
+                continue;
 
             @SuppressWarnings("unchecked")
             Map<String, Object> categoryData = (Map<String, Object>) entry.getValue();
@@ -907,8 +1089,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                     spent,
                     formattedAmount,
                     formattedSpent,
-                    dateAdded
-            );
+                    dateAdded);
 
             budgetCategories.add(category);
         }
@@ -930,8 +1111,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-            );
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
             layoutParams.setMargins(0, 8, 0, 0);
             budgetCategoriesRecyclerView.setLayoutParams(layoutParams);
 
@@ -1008,7 +1188,8 @@ public class AddTransactionActivity extends AppCompatActivity {
 
                 // Set consistent card appearance
                 if (isSelected) {
-                    cardView.setCardBackgroundColor(ContextCompat.getColor(AddTransactionActivity.this, R.color.purple_primary));
+                    cardView.setCardBackgroundColor(
+                            ContextCompat.getColor(AddTransactionActivity.this, R.color.purple_primary));
                     categoryName.setTextColor(ContextCompat.getColor(AddTransactionActivity.this, R.color.white));
                     categoryIcon.setColorFilter(ContextCompat.getColor(AddTransactionActivity.this, R.color.white));
                 } else {
@@ -1055,7 +1236,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                     return R.drawable.ic_bills;
                 } else if (category.contains("health")) {
                     return R.drawable.ic_health;
-                }else {
+                } else {
                     return R.drawable.ic_other;
                 }
             }
