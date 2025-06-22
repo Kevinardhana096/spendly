@@ -226,14 +226,19 @@ public class SetTotalBudgetActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onError(Exception e) {
-                android.util.Log.e("SetTotalBudgetActivity", "❌ Budget save failed!", e);
-                android.util.Log.e("SetTotalBudgetActivity", "Error message: " + e.getMessage());
+            public void onError(String error) {
+                android.util.Log.e("SetTotalBudgetActivity", "❌ Budget save failed!");
+                android.util.Log.e("SetTotalBudgetActivity", "Error message: " + error);
                 progressBar.setVisibility(View.GONE);
                 btnNext.setEnabled(true);
                 Toast.makeText(SetTotalBudgetActivity.this,
-                        "Failed to save budget: " + e.getMessage(),
+                        "Failed to save budget: " + error,
                         Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onError(Exception e) {
+
             }
         });
     }

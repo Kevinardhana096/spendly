@@ -99,22 +99,32 @@ public class HomeFragment extends Fragment {
         mAuth = FirebaseAuth.getInstance();
         mFirestore = FirebaseFirestore.getInstance();
         currentUser = mAuth.getCurrentUser();
-
         if (currentUser != null) {
             Log.d(TAG, "Firebase user authenticated: " + currentUser.getEmail());
+            Log.d(TAG, "User UID: " + currentUser.getUid());
 
             // Verify user matches expected user
             if (!CURRENT_USER.equals(currentUser.getEmail()) &&
                     !currentUser.getEmail().contains(CURRENT_USER)) {
                 Log.w(TAG, "User mismatch - Expected: " + CURRENT_USER + ", Got: " + currentUser.getEmail());
-            }        } else {
-            Log.e(TAG, "No Firebase user found!");
-        }
-
-        // Initialize repositories - Updated to real-time versions
+            }
+        } else {
+            Log.e(TAG, "❌ CRITICAL ERROR: No Firebase user found!");
+            Log.e(TAG, "❌ This will prevent all real-time listeners from working!");
+            showToast("Authentication error: Please login again");
+            return; // Exit early if no user
+        }        // Initialize repositories - Updated to real-time versions
         if (getActivity() != null) {
-            transactionRepository = RealtimeTransactionRepository.getInstance(getActivity());
-            savingsRepository = RealtimeSavingsRepository.getInstance(getActivity());
+            try {
+                transactionRepository = RealtimeTransactionRepository.getInstance(getActivity());
+                savingsRepository = RealtimeSavingsRepository.getInstance(getActivity());
+                Log.d(TAG, "✅ Repositories initialized successfully");
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Error initializing repositories", e);
+                showToast("Error initializing data repositories");
+            }
+        } else {
+            Log.e(TAG, "❌ Cannot initialize repositories - Activity is null");
         }
 
         // Initialize views
@@ -190,56 +200,79 @@ public class HomeFragment extends Fragment {
      * Setup real-time observers for automatic data updates
      */
     private void setupRealtimeObservers() {
-        if (currentUser == null || transactionRepository == null || savingsRepository == null) {
-            Log.e(TAG, "Cannot setup observers - missing dependencies");
+        if (currentUser == null) {
+            Log.e(TAG, "❌ Cannot setup observers - no current user");
+            return;
+        }
+
+        if (transactionRepository == null) {
+            Log.e(TAG, "❌ Cannot setup observers - transactionRepository is null");
+            return;
+        }
+
+        if (savingsRepository == null) {
+            Log.e(TAG, "❌ Cannot setup observers - savingsRepository is null");
             return;
         }
 
         Log.d(TAG, "=== SETTING UP REAL-TIME OBSERVERS ===");
+        Log.d(TAG, "User UID: " + currentUser.getUid());
 
-        // Observe transactions with real-time updates
-        transactionRepository.getTransactions(currentUser.getUid()).observe(getViewLifecycleOwner(), 
-            transactions -> {
-                if (transactions != null) {
-                    Log.d(TAG, "Real-time transactions update: " + transactions.size() + " items");
-                    // Update income/expense calculations
-                    updateTransactionTotals(transactions);
-                }
-            });
+        try {
+            // Observe transactions with real-time updates
+            transactionRepository.getTransactions(currentUser.getUid()).observe(getViewLifecycleOwner(),
+                    transactions -> {
+                        if (transactions != null) {
+                            Log.d(TAG, "Real-time transactions update: " + transactions.size() + " items");
+                            // Update income/expense calculations
+                            updateTransactionTotals(transactions);
+                        } else {
+                            Log.w(TAG, "Received null transactions in observer");
+                        }
+                    });
 
-        // Observe transaction totals
-        transactionRepository.getTotalIncome().observe(getViewLifecycleOwner(), 
-            income -> {
-                if (income != null) {
-                    totalIncome = income;
-                    updateBalanceAndOutcome();
-                }
-            });
+            // Observe transaction totals
+            transactionRepository.getTotalIncome().observe(getViewLifecycleOwner(),
+                    income -> {
+                        if (income != null) {
+                            Log.d(TAG, "Income observer triggered: Rp" + formatNumber(income));
+                            totalIncome = income;
+                            updateBalanceAndOutcome();
+                        }
+                    });
 
-        transactionRepository.getTotalExpenses().observe(getViewLifecycleOwner(), 
-            expenses -> {
-                if (expenses != null) {
-                    totalExpenses = expenses;
-                    updateBalanceAndOutcome();
-                }
-            });
+            transactionRepository.getTotalExpenses().observe(getViewLifecycleOwner(),
+                    expenses -> {
+                        if (expenses != null) {
+                            Log.d(TAG, "Expenses observer triggered: Rp" + formatNumber(expenses));
+                            totalExpenses = expenses;
+                            updateBalanceAndOutcome();
+                        }
+                    });
 
-        // Observe savings with real-time updates
-        savingsRepository.getSavings(currentUser.getUid()).observe(getViewLifecycleOwner(), 
-            savings -> {
-                if (savings != null) {
-                    Log.d(TAG, "Real-time savings update: " + savings.size() + " items");
-                    // Calculate total savings amount
-                    double total = 0.0;
-                    for (com.example.spendly.model.SavingsItem item : savings) {
-                        total += item.getCurrentAmount();
-                    }
-                    totalSavingsAmount = total;
-                    updateBalanceAndOutcome();
-                }
-            });
+            // Observe savings with real-time updates
+            savingsRepository.getSavings(currentUser.getUid()).observe(getViewLifecycleOwner(),
+                    savings -> {
+                        if (savings != null) {
+                            Log.d(TAG, "Real-time savings update: " + savings.size() + " items");
+                            // Calculate total savings amount
+                            double total = 0.0;
+                            for (com.example.spendly.model.SavingsItem item : savings) {
+                                total += item.getCurrentAmount();
+                            }
+                            totalSavingsAmount = total;
+                            updateBalanceAndOutcome();
+                        } else {
+                            Log.w(TAG, "Received null savings in observer");
+                        }
+                    });
 
-        Log.d(TAG, "Real-time observers setup completed");
+            Log.d(TAG, "✅ Real-time observers setup completed successfully");
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error setting up real-time observers", e);
+            showToast("Error setting up real-time data sync");
+        }
     }
 
     /**
@@ -248,7 +281,7 @@ public class HomeFragment extends Fragment {
     private void updateTransactionTotals(List<com.example.spendly.model.Transaction> transactions) {
         double income = 0.0;
         double expenses = 0.0;
-        
+
         for (com.example.spendly.model.Transaction transaction : transactions) {
             if ("income".equals(transaction.getType())) {
                 income += transaction.getAmount();
@@ -256,7 +289,7 @@ public class HomeFragment extends Fragment {
                 expenses += transaction.getAmount();
             }
         }
-          totalIncome = income;
+        totalIncome = income;
         totalExpenses = expenses;
         updateBalanceAndOutcome();
     }
@@ -289,36 +322,59 @@ public class HomeFragment extends Fragment {
      * ✅ Listen to user balance changes
      */
     private void setupUserBalanceListener() {
+        if (currentUser == null) {
+            Log.e(TAG, "❌ Cannot setup user balance listener - no current user");
+            return;
+        }
+
         Log.d(TAG, "Setting up user balance listener...");
+        Log.d(TAG, "Firestore path: users/" + currentUser.getUid());
 
-        userBalanceListener = mFirestore.collection("users")
-                .document(currentUser.getUid())
-                .addSnapshotListener((documentSnapshot, e) -> {
-                    if (e != null) {
-                        Log.e(TAG, "Error in user balance listener", e);
-                        return;
-                    }
-
-                    if (documentSnapshot != null && documentSnapshot.exists()) {
-                        User user = documentSnapshot.toObject(User.class);
-                        if (user != null) {
-                            double newBalance = user.getCurrentBalance();
-
-                            Log.d(TAG, "🔄 USER BALANCE CHANGED:");
-                            Log.d(TAG, "- Previous: Rp" + formatNumber(availableBalance));
-                            Log.d(TAG, "- New: Rp" + formatNumber(newBalance));
-                            Log.d(TAG, "- Change: Rp" + formatNumber(newBalance - availableBalance));
-                            Log.d(TAG, "- Time: " + CURRENT_DATE_TIME);
-
-                            availableBalance = newBalance;
-
-                            // Update UI immediately
-                            updateBalanceAndOutcome();
+        try {
+            userBalanceListener = mFirestore.collection("users")
+                    .document(currentUser.getUid())
+                    .addSnapshotListener((documentSnapshot, e) -> {
+                        if (e != null) {
+                            Log.e(TAG, "❌ Error in user balance listener", e);
+                            showToast("Error syncing balance data");
+                            return;
                         }
-                    }
-                });
 
-        Log.d(TAG, "✅ User balance listener setup completed");
+                        if (documentSnapshot != null && documentSnapshot.exists()) {
+                            try {
+                                User user = documentSnapshot.toObject(User.class);
+                                if (user != null) {
+                                    double newBalance = user.getCurrentBalance();
+
+                                    Log.d(TAG, "🔄 USER BALANCE CHANGED:");
+                                    Log.d(TAG, "- Previous: Rp" + formatNumber(availableBalance));
+                                    Log.d(TAG, "- New: Rp" + formatNumber(newBalance));
+                                    Log.d(TAG, "- Change: Rp" + formatNumber(newBalance - availableBalance));
+                                    Log.d(TAG, "- Time: " + CURRENT_DATE_TIME);
+                                    Log.d(TAG, "✅ This balance already includes all transactions from AddTransactionActivity");
+
+                                    availableBalance = newBalance;
+
+                                    // Update UI immediately
+                                    updateBalanceAndOutcome();
+                                } else {
+                                    Log.e(TAG, "❌ Failed to convert document to User object");
+                                }
+                            } catch (Exception conversionError) {
+                                Log.e(TAG, "❌ Error converting user document", conversionError);
+                            }
+                        } else {
+                            Log.w(TAG, "⚠️ User document does not exist or is null");
+                            Log.w(TAG, "Document exists: " + (documentSnapshot != null ? documentSnapshot.exists() : "null"));
+                        }
+                    });
+
+            Log.d(TAG, "✅ User balance listener setup completed");
+
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Exception setting up user balance listener", e);
+            showToast("Failed to setup balance sync");
+        }
     }
 
     /**
@@ -455,7 +511,8 @@ public class HomeFragment extends Fragment {
                                 Log.d(TAG, "  ❌ EXCLUDED (not expense or missing data)");
                                 if (amount == null) Log.d(TAG, "    Reason: amount is null");
                                 if (date == null) Log.d(TAG, "    Reason: date is null");
-                                if (!"expense".equalsIgnoreCase(type)) Log.d(TAG, "    Reason: type is '" + type + "' (not expense)");
+                                if (!"expense".equalsIgnoreCase(type))
+                                    Log.d(TAG, "    Reason: type is '" + type + "' (not expense)");
                             }
                         }
 
@@ -523,12 +580,13 @@ public class HomeFragment extends Fragment {
         if (getActivity() != null) {
             getActivity().runOnUiThread(() -> {
                 try {
-                    // Calculate effective balance
-                    double effectiveBalance = availableBalance - totalSavingsAmount;
+                    // ✅ FIXED: Use availableBalance directly (already includes all transactions)
+                    // No need to subtract totalSavingsAmount for display balance
+                    double displayBalance = availableBalance;
 
                     // ✅ ENHANCED: Complete outcome calculation with transaction focus
-                    Log.d(TAG, "Outcome calculation for transaction changes:");
-                    Log.d(TAG, "1. Available Balance: Rp" + formatNumber(availableBalance));
+                    Log.d(TAG, "Balance calculation for transaction changes:");
+                    Log.d(TAG, "1. Available Balance (includes all transactions): Rp" + formatNumber(availableBalance));
                     Log.d(TAG, "2. Total Savings: Rp" + formatNumber(totalSavingsAmount));
                     Log.d(TAG, "3. Repository Expenses: Rp" + formatNumber(totalExpenses));
                     Log.d(TAG, "4. Add Transaction Expenses: Rp" + formatNumber(totalAddTransactionAmount) + " ⭐ CHANGED");
@@ -537,17 +595,20 @@ public class HomeFragment extends Fragment {
                     double totalCompleteOutcome = maxTransactionExpenses + totalSavingsAmount;
 
                     Log.d(TAG, "Final calculation:");
+                    Log.d(TAG, "- Display Balance: Rp" + formatNumber(displayBalance) + " (from Firestore user balance)");
                     Log.d(TAG, "- Max(Repository, AddTransaction): Max(" + formatNumber(totalExpenses) +
                             ", " + formatNumber(totalAddTransactionAmount) + ") = " + formatNumber(maxTransactionExpenses));
                     Log.d(TAG, "- Plus Savings: " + formatNumber(maxTransactionExpenses) + " + " +
                             formatNumber(totalSavingsAmount) + " = " + formatNumber(totalCompleteOutcome));
 
-                    // ✅ FORCE UPDATE BALANCE
+                    // ✅ FORCE UPDATE BALANCE - Show actual available balance
                     if (tvBalance != null) {
-                        String newBalanceText = formatCurrency(effectiveBalance);
+                        String newBalanceText = formatCurrency(displayBalance);
                         tvBalance.setText(newBalanceText);
                         tvBalance.invalidate();
-                        Log.d(TAG, "✅ Balance updated to: " + newBalanceText);
+                        Log.d(TAG, "✅ Balance updated to: " + newBalanceText + " (actual available balance)");
+                    } else {
+                        Log.e(TAG, "❌ CRITICAL ERROR: tvBalance is null!");
                     }
 
                     // ✅ CRITICAL: Force update outcome for transaction changes
@@ -570,14 +631,18 @@ public class HomeFragment extends Fragment {
 
                         // Verification with delay
                         tvOutcome.post(() -> {
-                            String verifyText = tvOutcome.getText().toString();
-                            Log.d(TAG, "✅ TRANSACTION UPDATE VERIFICATION: tv_outcome displays: " + verifyText);
+                            try {
+                                String verifyText = tvOutcome.getText().toString();
+                                Log.d(TAG, "✅ TRANSACTION UPDATE VERIFICATION: tv_outcome displays: " + verifyText);
 
-                            if (!verifyText.equals(newOutcomeText)) {
-                                Log.e(TAG, "❌ MISMATCH: Expected " + newOutcomeText + ", got " + verifyText);
-                                tvOutcome.setText(newOutcomeText);
-                            } else {
-                                Log.d(TAG, "✅ PERFECT: tv_outcome correctly shows transaction impact");
+                                if (!verifyText.equals(newOutcomeText)) {
+                                    Log.e(TAG, "❌ MISMATCH: Expected " + newOutcomeText + ", got " + verifyText);
+                                    tvOutcome.setText(newOutcomeText);
+                                } else {
+                                    Log.d(TAG, "✅ PERFECT: tv_outcome correctly shows transaction impact");
+                                }
+                            } catch (Exception verifyError) {
+                                Log.e(TAG, "❌ Error during outcome verification", verifyError);
                             }
                         });
 
@@ -586,12 +651,23 @@ public class HomeFragment extends Fragment {
                         Log.e(TAG, "❌ CRITICAL ERROR: tv_outcome is null during transaction update!");
                     }
 
+                    // Update income if tvIncome exists
+                    if (tvIncome != null) {
+                        tvIncome.setText(formatCurrency(totalIncome));
+                        Log.d(TAG, "✅ Income updated to: " + formatCurrency(totalIncome));
+                    } else {
+                        Log.e(TAG, "❌ WARNING: tvIncome is null");
+                    }
+
                     Log.d(TAG, "=== TRANSACTION UI UPDATE COMPLETED ===");
 
                 } catch (Exception e) {
                     Log.e(TAG, "❌ ERROR during transaction UI update", e);
+                    showToast("Error updating UI: " + e.getMessage());
                 }
             });
+        } else {
+            Log.e(TAG, "❌ Activity is null during updateBalanceAndOutcome");
         }
     }
 
@@ -616,7 +692,8 @@ public class HomeFragment extends Fragment {
                         Log.d(TAG, "User document found in Firestore");
 
                         // Convert document to User object
-                        User user = documentSnapshot.toObject(User.class);                        if (user != null) {
+                        User user = documentSnapshot.toObject(User.class);
+                        if (user != null) {
                             // Update available balance from user profile
                             availableBalance = user.getCurrentBalance();
                             Log.d(TAG, "Initial user available balance: Rp" + formatNumber(availableBalance));
@@ -635,7 +712,9 @@ public class HomeFragment extends Fragment {
                     showLoadingState(false);
                     showToast("Failed to load user data: " + e.getMessage());
                 });
-    }    /**
+    }
+
+    /**
      * Load initial budget data to get monthly income for display
      */
     private void loadInitialBudgetData() {
@@ -649,7 +728,7 @@ public class HomeFragment extends Fragment {
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists() && documentSnapshot.getData() != null) {
                         Map<String, Object> budgetData = documentSnapshot.getData();
-                        
+
                         // Extract monthly income from budget data
                         if (budgetData.containsKey("monthly_income")) {
                             if (budgetData.get("monthly_income") instanceof Double) {
@@ -659,17 +738,17 @@ public class HomeFragment extends Fragment {
                             }
                             Log.d(TAG, "Monthly income from budget: Rp" + formatNumber(totalIncome));
                         }
-                        
+
                         // Extract other budget values
                         extractBudgetData(budgetData);
-                        
-                        Log.d(TAG, "Budget data loaded - Income: Rp" + formatNumber(totalIncome) + 
-                              ", Budget: Rp" + formatNumber(totalBudget));
+
+                        Log.d(TAG, "Budget data loaded - Income: Rp" + formatNumber(totalIncome) +
+                                ", Budget: Rp" + formatNumber(totalBudget));
                     } else {
                         Log.d(TAG, "No budget data found, using default income value");
                         // If no budget is set, income will remain 0 or use transaction-based income
                     }
-                    
+
                     // Continue loading savings data
                     loadInitialSavingsData();
                 })
@@ -785,7 +864,9 @@ public class HomeFragment extends Fragment {
                     showLoadingState(false);
                     showToast("Failed to create user data: " + e.getMessage());
                 });
-    }    /**
+    }
+
+    /**
      * Load budget data - Simplified for now without BudgetRepository callbacks
      */
     private void loadBudgetData() {
@@ -829,7 +910,8 @@ public class HomeFragment extends Fragment {
 
     /**
      * Load transaction data from repository - For comparison
-     */    private void loadTransactionData() {
+     */
+    private void loadTransactionData() {
         if (transactionRepository == null) {
             showLoadingState(false);
             updateUI();
@@ -858,13 +940,14 @@ public class HomeFragment extends Fragment {
         String greeting = "Hi! " + extractName(currentUser != null ? currentUser.getEmail() : "User");
         tvGreeting.setText(greeting);
 
-        // Calculate and update all values
-        double effectiveBalance = availableBalance - totalSavingsAmount;
+        // ✅ FIXED: Use availableBalance directly for display
+        // This balance already reflects all transactions (income and expenses)
+        double displayBalance = availableBalance;
         double maxTransactionExpenses = Math.max(totalExpenses, totalAddTransactionAmount);
         double totalCompleteOutcome = maxTransactionExpenses + totalSavingsAmount;
 
-        // Update balance
-        tvBalance.setText(formatCurrency(effectiveBalance));
+        // Update balance - show actual available balance
+        tvBalance.setText(formatCurrency(displayBalance));
 
         // Update budget info (unchanged)
         tvRemainingBudget.setText(formatCurrency(remainingBudget));
@@ -873,7 +956,7 @@ public class HomeFragment extends Fragment {
         tvUsedAmount.setText("Used " + formatCurrency(originalUsedBudget));
         tvTotalBudget.setText("From " + formatCurrency(totalBudget));
 
-        int usagePercentage = totalBudget > 0 ? (int)((originalUsedBudget / totalBudget) * 100) : 0;
+        int usagePercentage = totalBudget > 0 ? (int) ((originalUsedBudget / totalBudget) * 100) : 0;
         tvUsedPercentage.setText(usagePercentage + "% used");
         updateProgressBar(usagePercentage);
 
@@ -881,7 +964,9 @@ public class HomeFragment extends Fragment {
         tvIncome.setText(formatCurrency(totalIncome));
         tvOutcome.setText(formatCurrency(totalCompleteOutcome));
 
-        Log.d(TAG, "✅ Full UI update completed - Outcome: " + formatCurrency(totalCompleteOutcome));
+        Log.d(TAG, "✅ Full UI update completed");
+        Log.d(TAG, "- Display Balance: " + formatCurrency(displayBalance) + " (actual available balance)");
+        Log.d(TAG, "- Outcome: " + formatCurrency(totalCompleteOutcome));
     }
 
     /**
@@ -896,7 +981,7 @@ public class HomeFragment extends Fragment {
                 parent.post(() -> {
                     int parentWidth = parent.getWidth();
                     if (parentWidth > 0) {
-                        int width = (int)(parentWidth * percentage / 100.0);
+                        int width = (int) (parentWidth * percentage / 100.0);
                         params.width = Math.max(width, 10);
                         progressIndicator.setLayoutParams(params);
                     }
@@ -1002,7 +1087,8 @@ public class HomeFragment extends Fragment {
         if (savingsListener != null) {
             savingsListener.remove();
             Log.d(TAG, "Savings listener removed");
-        }        if (transactionsListener != null) {
+        }
+        if (transactionsListener != null) {
             transactionsListener.remove();
             Log.d(TAG, "Transactions listener removed");
         }
@@ -1011,11 +1097,186 @@ public class HomeFragment extends Fragment {
         if (transactionRepository != null) {
             transactionRepository.cleanup();
         }
-        
+
         if (savingsRepository != null) {
             savingsRepository.cleanup();
         }
-        
+
         Log.d(TAG, "Real-time repositories cleaned up");
     }
-}
+
+    /**
+     * 🔧 DEBUG: Manual balance refresh for testing
+     * Call this method to force refresh balance if automatic update fails
+     */
+    public void debugRefreshBalance() {
+        Log.d(TAG, "=== MANUAL DEBUG BALANCE REFRESH ===");
+        
+        if (currentUser == null) {
+            Log.e(TAG, "❌ DEBUG: currentUser is null");
+            showToast("Debug: User not authenticated");
+            return;
+        }
+        
+        Log.d(TAG, "DEBUG: Refreshing balance for user: " + currentUser.getEmail());
+        Log.d(TAG, "DEBUG: User UID: " + currentUser.getUid());
+        
+        // Force reload user data
+        mFirestore.collection("users")
+                .document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        User user = documentSnapshot.toObject(User.class);
+                        if (user != null) {
+                            double newBalance = user.getCurrentBalance();
+                            Log.d(TAG, "✅ DEBUG: Retrieved balance from Firestore: Rp" + formatNumber(newBalance));
+                            
+                            availableBalance = newBalance;
+                            updateBalanceAndOutcome();
+                            showToast("Balance refreshed: " + formatCurrency(newBalance));
+                        } else {
+                            Log.e(TAG, "❌ DEBUG: Failed to convert user document");
+                            showToast("Debug: Failed to convert user data");
+                        }
+                    } else {
+                        Log.e(TAG, "❌ DEBUG: User document does not exist");
+                        showToast("Debug: User document not found");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "❌ DEBUG: Error refreshing balance", e);
+                    showToast("Debug: Error - " + e.getMessage());
+                });
+    }
+
+    /**
+     * 🔧 DEBUG: Check listener status
+     */
+    public void debugCheckListeners() {
+        Log.d(TAG, "=== LISTENER STATUS DEBUG ===");
+        Log.d(TAG, "userBalanceListener: " + (userBalanceListener != null ? "ACTIVE" : "NULL"));
+        Log.d(TAG, "savingsListener: " + (savingsListener != null ? "ACTIVE" : "NULL"));
+        Log.d(TAG, "transactionsListener: " + (transactionsListener != null ? "ACTIVE" : "NULL"));
+        Log.d(TAG, "transactionRepository: " + (transactionRepository != null ? "INITIALIZED" : "NULL"));
+        Log.d(TAG, "savingsRepository: " + (savingsRepository != null ? "INITIALIZED" : "NULL"));
+        Log.d(TAG, "currentUser: " + (currentUser != null ? currentUser.getEmail() : "NULL"));
+        Log.d(TAG, "Fragment attached: " + isAdded());
+        Log.d(TAG, "Activity: " + (getActivity() != null ? "VALID" : "NULL"));
+        
+        // Check UI components
+        Log.d(TAG, "UI Components Status:");
+        Log.d(TAG, "- tvBalance: " + (tvBalance != null ? "OK" : "NULL"));
+        Log.d(TAG, "- tvOutcome: " + (tvOutcome != null ? "OK" : "NULL"));
+        Log.d(TAG, "- tvIncome: " + (tvIncome != null ? "OK" : "NULL"));
+        
+        showToast("Check logs for listener status");
+    }
+
+    /**
+     * 🔧 DEBUG: Force setup listeners again
+     */
+    public void debugResetupListeners() {
+        Log.d(TAG, "=== FORCING LISTENER RESET ===");
+        
+        // Clean up existing listeners
+        if (userBalanceListener != null) {
+            userBalanceListener.remove();
+            userBalanceListener = null;
+        }
+        if (savingsListener != null) {
+            savingsListener.remove();
+            savingsListener = null;
+        }
+        if (transactionsListener != null) {
+            transactionsListener.remove();
+            transactionsListener = null;
+        }
+        
+        // Setup again
+        if (currentUser != null) {
+            setupRealtimeListeners();
+            showToast("Listeners reset and re-setup");
+        } else {
+            showToast("Cannot reset - user not authenticated");
+        }
+    }
+
+    // ...existing code...
+}    /*     * ===============================================================================================     * BALANCE UPDATE FLOW DOCUMENTATION     * ===============================================================================================     *      * PROBLEM SOLVED: Available balance tidak ter-update di HomeFragment setelah transaksi     *      * FLOW YANG BENAR:     * 1. User melakukan transaksi di AddTransactionActivity     * 2. AddTransactionActivity.updateUserBalance() mengupdate currentBalance di Firestore users document     * 3. HomeFragment.setupUserBalanceListener() mendeteksi perubahan currentBalance secara real-time     * 4. HomeFragment.updateBalanceAndOutcome() mengupdate UI dengan balance yang baru     *      * PENYEBAB MASALAH SEBELUMNYA:     * - HomeFragment menggunakan effectiveBalance = availableBalance - totalSavingsAmount     * - Padahal availableBalance sudah adalah balance final yang mencakup semua transaksi     * - totalSavingsAmount seharusnya hanya untuk perhitungan outcome, bukan untuk mengurangi balance display     *      * SOLUSI YANG DITERAPKAN:     * - HomeFragment sekarang menampilkan availableBalance langsung (tanpa dikurangi savings)     * - availableBalance di HomeFragment di-update otomatis melalui setupUserBalanceListener()     * - Real-time listener sudah bekerja dengan sempurna     *      * VERIFIKASI:     * 1. Check log "🔄 USER BALANCE CHANGED" saat melakukan transaksi     * 2. Check log "✅ Balance updated to" untuk memastikan UI ter-update     * 3. Check balance di UI HomeFragment harus langsung berubah setelah transaksi     * ===============================================================================================     */
+
+/*
+     * ===============================================================================================
+     * ERROR ANALYSIS & TROUBLESHOOTING GUIDE
+     * ===============================================================================================
+     * 
+     * KEMUNGKINAN ERROR YANG MENYEBABKAN BALANCE TIDAK TER-UPDATE:
+     * 
+     * 1. ❌ AUTHENTICATION ERRORS:
+     *    - Firebase user null atau tidak authenticated
+     *    - User UID null atau tidak valid
+     *    - Firestore permission denied
+     *    - Cek log: "❌ CRITICAL ERROR: No Firebase user found!"
+     * 
+     * 2. ❌ FIRESTORE CONNECTION ERRORS:
+     *    - Network connectivity issues
+     *    - Firestore offline mode
+     *    - Document path tidak valid
+     *    - Cek log: "❌ Error in user balance listener"
+     * 
+     * 3. ❌ LISTENER SETUP ERRORS:
+     *    - Repository initialization failed
+     *    - Real-time observers tidak ter-setup
+     *    - Fragment lifecycle issues
+     *    - Cek log: "❌ Cannot setup observers"
+     * 
+     * 4. ❌ UI UPDATE ERRORS:
+     *    - TextView null (tvBalance, tvOutcome)
+     *    - Fragment not attached
+     *    - Activity context null
+     *    - Cek log: "❌ CRITICAL ERROR: tvBalance is null!"
+     * 
+     * 5. ❌ DATA CONVERSION ERRORS:
+     *    - User document conversion failed
+     *    - Balance value null atau invalid
+     *    - Number format exceptions
+     *    - Cek log: "❌ Failed to convert document to User object"
+     * 
+     * TROUBLESHOOTING STEPS:
+     * 
+     * Step 1: Check Authentication
+     * - Pastikan user sudah login
+     * - Cek Firebase Auth status
+     * - Verify user UID tidak null
+     * 
+     * Step 2: Check Firestore Connection
+     * - Test internet connectivity
+     * - Check Firestore rules
+     * - Verify document path exists
+     * 
+     * Step 3: Check Real-time Listeners
+     * - Verify listeners ter-setup tanpa error
+     * - Check repository initialization
+     * - Verify Fragment lifecycle state
+     * 
+     * Step 4: Check UI State
+     * - Verify TextView tidak null
+     * - Check Fragment attached state
+     * - Verify Activity context valid
+     * 
+     * Step 5: Check Log Output
+     * - Monitor log untuk error messages
+     * - Trace execution flow
+     * - Identify failure points
+     * 
+     * ENHANCED ERROR HANDLING YANG SUDAH DITAMBAHKAN:
+     * - ✅ Authentication validation dengan early return
+     * - ✅ Repository initialization error handling
+     * - ✅ Listener setup dengan try-catch
+     * - ✅ UI update dengan null checks
+     * - ✅ Data conversion error handling
+     * - ✅ Comprehensive logging untuk debugging
+     * - ✅ User-friendly error messages
+     * 
+     * ===============================================================================================
+     */

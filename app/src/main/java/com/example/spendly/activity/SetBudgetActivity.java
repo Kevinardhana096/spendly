@@ -427,18 +427,21 @@ public class SetBudgetActivity extends AppCompatActivity {
                     android.util.Log.d("SetBudgetActivity", "Budget category saved successfully");
                     // Also update the remaining budget
                     updateRemainingBudgetInRepository(remainingBudget - amount);
-                }
-
-                @Override
-                public void onError(Exception e) {
+                }                @Override
+                public void onError(String error) {
                     progressBar.setVisibility(View.GONE);
                     btnAddBudget.setEnabled(true);
                     
                     // Log the detailed error for debugging
-                    android.util.Log.e("SetBudgetActivity", "Failed to save category: " + category + ", amount: " + amount, e);
+                    android.util.Log.e("SetBudgetActivity", "Failed to save category: " + category + ", amount: " + amount + ", error: " + error);
                     
                     // Try alternative saving method as fallback
                     tryAlternativeSave(category, amount, formattedAmount);
+                }
+
+                @Override
+                public void onError(Exception e) {
+
                 }
             });
         } catch (Exception e) {

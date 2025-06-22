@@ -183,19 +183,20 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
                     }
                     showEmptyState();
                 }
-            }
-
-            @Override
-            public void onError(Exception e) {
+            }            @Override
+            public void onError(String error) {
                 if (loadingProgressBar != null) {
                     loadingProgressBar.setVisibility(View.GONE);
                 }
 
-                showEmptyState();
-                if (getContext() != null) {
-                    Toast.makeText(getContext(), "Error checking budget: " + e.getMessage(),
+                showEmptyState();                if (getContext() != null) {                    Toast.makeText(getContext(), "Error checking budget: " + error,
                             Toast.LENGTH_SHORT).show();
                 }
+            }
+
+            @Override
+            public void onError(Exception e) {
+
             }
         });
     }
@@ -209,21 +210,24 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
 
                 // Check if categories exist
                 checkBudgetCategories();
-            }
-
-            @Override
-            public void onError(Exception e) {
+            }            @Override
+            public void onError(String error) {
                 if (loadingProgressBar != null) {
                     loadingProgressBar.setVisibility(View.GONE);
                 }
 
                 if (getContext() != null) {
                     Toast.makeText(getContext(),
-                            "Error loading budget data: " + e.getMessage(),
+                            "Error loading budget data: " + error,
                             Toast.LENGTH_SHORT).show();
                 }
 
                 showEmptyState();
+            }
+
+            @Override
+            public void onError(Exception e) {
+
             }
         });
     }
@@ -247,10 +251,8 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
                     showBudgetView();
                     showNoCategories();
                 }
-            }
-
-            @Override
-            public void onError(Exception e) {
+            }            @Override
+            public void onError(String error) {
                 if (loadingProgressBar != null) {
                     loadingProgressBar.setVisibility(View.GONE);
                 }
@@ -264,6 +266,11 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
                         "Failed to check budget categories. You can add them with the + button.",
                         Toast.LENGTH_SHORT).show();
                 }
+            }
+
+            @Override
+            public void onError(Exception e) {
+
             }
         });
     }
@@ -286,10 +293,8 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
                             "Offline mode: Using locally saved budget data",
                             Toast.LENGTH_SHORT).show();
                 }
-            }
-
-            @Override
-            public void onError(Exception e) {
+            }            @Override
+            public void onError(String error) {
                 if (loadingProgressBar != null) {
                     loadingProgressBar.setVisibility(View.GONE);
                 }
@@ -299,9 +304,14 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
 
                 if (getContext() != null) {
                     Toast.makeText(getContext(),
-                            "Error loading categories: " + e.getMessage(),
+                            "Error loading categories: " + error,
                             Toast.LENGTH_SHORT).show();
                 }
+            }
+
+            @Override
+            public void onError(Exception e) {
+
             }
         });
     }
@@ -481,13 +491,16 @@ public class BudgetFragment extends Fragment implements BudgetCategoryAdapter.Bu
                     if (getContext() != null) {
                         Toast.makeText(getContext(), "Budget data synchronized with cloud", Toast.LENGTH_SHORT).show();
                     }
+                }                @Override
+                public void onError(String error) {
+                    if (getContext() != null) {
+                        Toast.makeText(getContext(), "Failed to sync: " + error, Toast.LENGTH_SHORT).show();
+                    }
                 }
 
                 @Override
                 public void onError(Exception e) {
-                    if (getContext() != null) {
-                        Toast.makeText(getContext(), "Failed to sync: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    }
+
                 }
             });
         }

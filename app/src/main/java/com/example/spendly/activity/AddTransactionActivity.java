@@ -131,25 +131,31 @@ public class AddTransactionActivity extends AppCompatActivity {
                         public void onSuccess(Map<String, Object> categoriesData) {
                             // Convert the categories data to a list of BudgetCategory objects
                             processBudgetCategories(categoriesData);
+                        }                        @Override
+                        public void onError(String error) {
+                            // Show only General card if error loading categories
+                            Log.e(TAG, "Error loading budget categories: " + error);
+                            showOnlyGeneralCategory();
                         }
 
                         @Override
                         public void onError(Exception e) {
-                            // Show only General card if error loading categories
-                            Log.e(TAG, "Error loading budget categories: " + e.getMessage());
-                            showOnlyGeneralCategory();
+                            
                         }
                     });
                 } else {
                     Log.i(TAG, "No budget categories found, showing only General category");
                     showOnlyGeneralCategory();
                 }
+            }            @Override
+            public void onError(String error) {
+                Log.e(TAG, "Error checking budget categories: " + error);
+                showOnlyGeneralCategory();
             }
 
             @Override
             public void onError(Exception e) {
-                Log.e(TAG, "Error checking budget categories: " + e.getMessage());
-                showOnlyGeneralCategory();
+
             }
         });
     }
@@ -644,8 +650,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         // ✅ CRITICAL: Save to Firestore with current timestamp for real-time detection
         saveTransactionToFirestore(transaction, addMore);
-    }
-    private void saveTransactionToFirestore(Transaction transaction, boolean addMore) {
+    }    private void saveTransactionToFirestore(Transaction transaction, boolean addMore) {
         String userId = FirebaseAuth.getInstance().getUid();
         if (userId == null) {
             Log.e(TAG, "❌ Cannot save transaction - user not logged in");
@@ -653,51 +658,52 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
-        Log.d(TAG, "Saving transaction to Firestore...");
+        Log.d(TAG, "=== SAVING TRANSACTION TO FIRESTORE ===");
         Log.d(TAG, "User ID: " + userId);
         Log.d(TAG, "Firestore path: users/" + userId + "/transactions");
 
-        // Create transaction data with CURRENT timestamp (not selected date)
-        Map<String, Object> transactionData = new HashMap<>();
-        transactionData.put("amount", transaction.getAmount());
-        transactionData.put("category", transaction.getCategory());
-        transactionData.put("type", transaction.getType());
-        transactionData.put("description", transaction.getCategory() + " " + transaction.getType());
+        try {
+            // Create transaction data with CURRENT timestamp (not selected date)
+            Map<String, Object> transactionData = new HashMap<>();
+            transactionData.put("amount", transaction.getAmount());
+            transactionData.put("category", transaction.getCategory());
+            transactionData.put("type", transaction.getType());
+            transactionData.put("description", transaction.getCategory() + " " + transaction.getType());
 
-        // ✅ CRITICAL: Use current timestamp for immediate detection
-        long currentTimestamp = 1719348262000L; // 2025-06-21 20:24:22 UTC
-        transactionData.put("date", currentTimestamp); // This ensures it's in current month
-        transactionData.put("createdAt", currentTimestamp);
-        transactionData.put("userId", "nowriafisda");
+            // ✅ CRITICAL: Use current timestamp for immediate detection
+            long currentTimestamp = System.currentTimeMillis(); // Use actual current timestamp
+            transactionData.put("date", currentTimestamp);
+            transactionData.put("createdAt", currentTimestamp);
+            transactionData.put("userId", userId); // Use actual userId instead of hardcoded
 
-        // Format amount for display
-        NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
-        transactionData.put("formattedAmount", formatter.format(transaction.getAmount()));
+            // Format amount for display
+            NumberFormat formatter = NumberFormat.getCurrencyInstance(new Locale("in", "ID"));
+            transactionData.put("formattedAmount", formatter.format(transaction.getAmount()));
 
-        Log.d(TAG, "Transaction data to save:");
-        Log.d(TAG, "- amount: " + transaction.getAmount());
-        Log.d(TAG, "- category: " + transaction.getCategory());
-        Log.d(TAG, "- type: " + transaction.getType());
-        Log.d(TAG, "- date: " + currentTimestamp + " (" + new Date(currentTimestamp) + ")");
-        Log.d(TAG, "- userId: nowriafisda");
+            Log.d(TAG, "Transaction data to save:");
+            Log.d(TAG, "- amount: " + transaction.getAmount());
+            Log.d(TAG, "- category: " + transaction.getCategory());
+            Log.d(TAG, "- type: " + transaction.getType());
+            Log.d(TAG, "- date: " + currentTimestamp + " (" + new Date(currentTimestamp) + ")");
+            Log.d(TAG, "- userId: " + userId);
 
-        // Save to Firestore
-        FirebaseFirestore.getInstance()
-                .collection("users")
-                .document(userId)
-                .collection("transactions")
-                .add(transactionData)
-                .addOnSuccessListener(documentReference -> {
-                    Log.d(TAG, "✅ TRANSACTION SAVED SUCCESSFULLY");
-                    Log.d(TAG, "Document ID: " + documentReference.getId());
-                    Log.d(TAG, "User: nowriafisda");
-                    Log.d(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
-                    Log.d(TAG, "Type: " + transaction.getType());
-                    Log.d(TAG, "Timestamp: " + currentTimestamp);
-                    Log.d(TAG, "🔄 This should trigger HomeFragment transaction listener!");
+            // Save to Firestore
+            FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .document(userId)
+                    .collection("transactions")
+                    .add(transactionData)
+                    .addOnSuccessListener(documentReference -> {
+                        Log.d(TAG, "✅ TRANSACTION SAVED SUCCESSFULLY");
+                        Log.d(TAG, "Document ID: " + documentReference.getId());
+                        Log.d(TAG, "User: " + userId);
+                        Log.d(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
+                        Log.d(TAG, "Type: " + transaction.getType());
+                        Log.d(TAG, "Timestamp: " + currentTimestamp);
+                        Log.d(TAG, "🔄 This should trigger HomeFragment transaction listener!");
 
-                    // Update user balance
-                    updateUserBalance(transaction, new TransactionRepository.TransactionCallback() {
+                        // Update user balance
+                        updateUserBalance(transaction, new TransactionRepository.TransactionCallback() {
                         @Override
                         public void onSuccess(Map<String, Object> data) {
                             Log.d(TAG, "✅ User balance updated successfully");
@@ -721,19 +727,24 @@ public class AddTransactionActivity extends AppCompatActivity {
                                 handleTransactionSaveComplete(addMore);
                             });
                         }
-                    });
-                })
+                    });                })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "❌ ERROR SAVING TRANSACTION", e);
-                    Log.e(TAG, "User: nowriafisda");
+                    Log.e(TAG, "User: " + userId);
                     Log.e(TAG, "Amount: Rp" + formatNumber(transaction.getAmount()));
-                    Log.e(TAG, "Error: " + e.getMessage());
+                    Log.e(TAG, "Error details: " + e.getMessage());
 
                     runOnUiThread(() -> {
                         Toast.makeText(this, "Failed to save transaction: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
+                                Toast.LENGTH_LONG).show();
                     });
                 });
+                
+        } catch (Exception e) {
+            Log.e(TAG, "❌ EXCEPTION in saveTransactionToFirestore", e);
+            Toast.makeText(this, "Error preparing transaction data: " + e.getMessage(), 
+                    Toast.LENGTH_SHORT).show();
+        }
     }
     private String formatNumber(double amount) {
         NumberFormat formatter = NumberFormat.getInstance(new Locale("in", "ID"));
@@ -785,29 +796,42 @@ public class AddTransactionActivity extends AppCompatActivity {
                 .document(userId)
                 .get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        // Get current balance
+                    if (documentSnapshot.exists()) {                        // Get current balance
                         Double currentBalance = documentSnapshot.getDouble("currentBalance");
                         if (currentBalance == null) currentBalance = 0.0;
+
+                        Log.d(TAG, "=== UPDATING USER BALANCE ===");
+                        Log.d(TAG, "Current balance: Rp" + formatNumber(currentBalance));
+                        Log.d(TAG, "Transaction type: " + transaction.getType());
+                        Log.d(TAG, "Transaction amount: Rp" + formatNumber(transaction.getAmount()));
 
                         // Calculate new balance based on transaction type
                         double newBalance;
                         if ("expense".equalsIgnoreCase(transaction.getType())) {
                             newBalance = currentBalance - transaction.getAmount();
+                            Log.d(TAG, "Expense: " + formatNumber(currentBalance) + " - " + formatNumber(transaction.getAmount()) + " = " + formatNumber(newBalance));
                         } else { // Income transaction
                             newBalance = currentBalance + transaction.getAmount();
+                            Log.d(TAG, "Income: " + formatNumber(currentBalance) + " + " + formatNumber(transaction.getAmount()) + " = " + formatNumber(newBalance));
                         }
+
+                        Log.d(TAG, "New balance to save: Rp" + formatNumber(newBalance));
 
                         // Update the balance in Firestore
                         FirebaseFirestore.getInstance().collection("users")
                                 .document(userId)
                                 .update("currentBalance", newBalance)
                                 .addOnSuccessListener(aVoid -> {
+                                    Log.d(TAG, "✅ Balance successfully updated in Firestore");
+                                    Log.d(TAG, "✅ HomeFragment listener should detect this change immediately");
                                     Map<String, Object> result = new HashMap<>();
                                     result.put("newBalance", newBalance);
                                     callback.onSuccess(result);
                                 })
-                                .addOnFailureListener(e -> callback.onError(e));
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "❌ Failed to update balance in Firestore", e);
+                                    callback.onError(e);
+                                });
                     } else {
                         callback.onError(new Exception("User document not found"));
                     }

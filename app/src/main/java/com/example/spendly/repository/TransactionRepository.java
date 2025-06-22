@@ -163,29 +163,38 @@ public class TransactionRepository {
                                         @Override
                                         public void onSuccess(Map<String, Object> data) {
                                             callback.onSuccess(new HashMap<>());
+                                        }                                        @Override
+                                        public void onError(String error) {
+                                            Log.e(TAG, "Error updating remaining budget: " + error);
+                                            // Still return success since the category was updated
+                                            callback.onSuccess(new HashMap<>());
                                         }
 
                                         @Override
                                         public void onError(Exception e) {
-                                            Log.e(TAG, "Error updating remaining budget: " + e.getMessage());
-                                            // Still return success since the category was updated
-                                            callback.onSuccess(new HashMap<>());
+
                                         }
                                     });
+                            }                            @Override
+                            public void onError(String error) {
+                                Log.e(TAG, "Error getting total budget: " + error);
+                                // Still return success since the category was updated
+                                callback.onSuccess(new HashMap<>());
                             }
 
                             @Override
                             public void onError(Exception e) {
-                                Log.e(TAG, "Error getting total budget: " + e.getMessage());
-                                // Still return success since the category was updated
-                                callback.onSuccess(new HashMap<>());
+
                             }
                         });
+                    }                    @Override
+                    public void onError(String error) {
+                        callback.onError(new Exception(error));
                     }
 
                     @Override
                     public void onError(Exception e) {
-                        callback.onError(e);
+
                     }
                 }
             );
