@@ -34,9 +34,11 @@
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".activity.MainActivity" />
-        </activity>
-        <activity
+        </activity>        <activity
             android:name=".activity.EditPinCodeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".activity.VerifyPinActivity"
             android:exported="false" />
         <activity
             android:name=".activity.SetPinCodeActivity"

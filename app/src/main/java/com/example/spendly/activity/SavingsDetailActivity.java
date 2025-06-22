@@ -40,6 +40,8 @@ import java.util.concurrent.TimeUnit;
 public class SavingsDetailActivity extends AppCompatActivity implements SavingHistoryAdapter.OnHistoryItemClickListener {
 
     private static final String TAG = "SavingsDetailActivity";
+    private static final int REQUEST_VERIFY_PIN_ADD_MONEY = 1001;
+    private static final int REQUEST_EDIT_SAVINGS = 1002;
 
     // Current context - Updated to 2025-06-21 19:30:30 UTC
     private static final String CURRENT_DATE_TIME = "2025-06-21 19:30:30";
@@ -58,13 +60,14 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
     private MaterialButton addMoneyButton;
     private TextView addHistoryButton;
     private RecyclerView historyRecyclerView;
-    private LinearLayout emptyHistoryLayout;
-
-    // Data
+    private LinearLayout emptyHistoryLayout;    // Data
     private SavingsItem savingsItem;
     private String savingsId;
     private List<SavingHistoryItem> historyList;
     private SavingHistoryAdapter historyAdapter;
+    
+    // Temporary data for PIN verification
+    private double pendingAddAmount = 0.0;
 
     // Firebase
     private FirebaseFirestore db;
@@ -538,9 +541,7 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         int padding = (int) (16 * getResources().getDisplayMetrics().density);
         input.setPadding(padding, padding, padding, padding);
 
-        builder.setView(input);
-
-        builder.setPositiveButton("Add Money", (dialog, which) -> {
+        builder.setView(input);        builder.setPositiveButton("Add Money", (dialog, which) -> {
             String amountStr = input.getText().toString().trim();
             Log.d(TAG, "User " + CURRENT_USER + " entered amount: " + amountStr);
 
@@ -549,7 +550,9 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
                     double amount = Double.parseDouble(amountStr);
                     if (amount > 0) {
                         Log.d(TAG, "Valid amount entered: Rp" + formatNumber(amount));
-                        addMoneyToSavings(amount);
+                        // Store amount and verify PIN first
+                        pendingAddAmount = amount;
+                        verifyPinForAddMoney();
                     } else {
                         Log.w(TAG, "Invalid amount (not positive): " + amount);
                         Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
@@ -732,6 +735,123 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
                 });
     }
 
+    private void verifyPinForAddMoney() {
+        Log.d(TAG, "Starting PIN verification for add money: Rp" + formatNumber(pendingAddAmount));
+        
+        Intent intent = new Intent(this, VerifyPinActivity.class);
+        intent.putExtra(VerifyPinActivity.EXTRA_VERIFICATION_TYPE, VerifyPinActivity.TYPE_ADD_MONEY);
+        
+        // Pass verification data
+        Bundle verificationData = new Bundle();
+        verificationData.putDouble("amount", pendingAddAmount);
+        verificationData.putString("savings_name", savingsItem != null ? savingsItem.getName() : "Savings");
+        intent.putExtra(VerifyPinActivity.EXTRA_VERIFICATION_DATA, verificationData);
+        
+        startActivityForResult(intent, REQUEST_VERIFY_PIN_ADD_MONEY);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == REQUEST_VERIFY_PIN_ADD_MONEY) {
+            if (resultCode == RESULT_OK) {
+                // PIN verified successfully, proceed with add money
+                Log.d(TAG, "PIN verified successfully, proceeding to add money: Rp" + formatNumber(pendingAddAmount));
+                addMoneyToSavings(pendingAddAmount);
+            } else {
+                // PIN verification failed or cancelled
+                Log.d(TAG, "PIN verification cancelled or failed");
+                Toast.makeText(this, "PIN verification required to add money", Toast.LENGTH_SHORT).show();
+            }
+            // Reset pending amount
+            pendingAddAmount = 0.0;
+        } else if (requestCode == REQUEST_EDIT_SAVINGS) {
+            if (resultCode == RESULT_OK) {
+                // Savings edited successfully, refresh data
+                Log.d(TAG, "Savings edited successfully, refreshing data");
+                loadSavingsDetails();
+            }        }
+    }
+
+    private void loadSavingsDetails() {
+        if (savingsId == null || savingsId.isEmpty()) {
+            Log.e(TAG, "Cannot load savings details - savingsId is null or empty");
+            Toast.makeText(this, "Error: Savings ID not found", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        if (currentUser == null) {
+            Log.e(TAG, "Cannot load savings details - user not logged in");
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        Log.d(TAG, "=== RELOADING SAVINGS DETAILS ===");
+        Log.d(TAG, "User: " + currentUser.getUid());
+        Log.d(TAG, "Savings ID: " + savingsId);
+
+        // Fetch fresh data from Firestore
+        db.collection("users")
+                .document(currentUser.getUid())
+                .collection("savings")
+                .document(savingsId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Log.d(TAG, "✅ Savings details reloaded successfully");
+                        
+                        // Update the savingsItem with fresh data
+                        try {
+                            String name = documentSnapshot.getString("name");
+                            String category = documentSnapshot.getString("category");
+                            Double targetAmount = documentSnapshot.getDouble("targetAmount");
+                            Double currentAmount = documentSnapshot.getDouble("currentAmount");
+                            Long completionDate = documentSnapshot.getLong("completionDate");
+                            String photoUri = documentSnapshot.getString("photoUri");
+                            Long createdAt = documentSnapshot.getLong("createdAt");
+
+                            // Update savingsItem
+                            savingsItem.setName(name != null ? name : "Unknown");
+                            savingsItem.setCategory(category != null ? category : "General");
+                            savingsItem.setTargetAmount(targetAmount != null ? targetAmount : 0.0);
+                            savingsItem.setCurrentAmount(currentAmount != null ? currentAmount : 0.0);
+                            savingsItem.setCompletionDate(completionDate != null ? completionDate : System.currentTimeMillis());
+                            savingsItem.setPhotoUri(photoUri);
+                            if (createdAt != null) {
+                                savingsItem.setCreatedAt(createdAt);
+                            }
+
+                            Log.d(TAG, "Updated savings data:");
+                            Log.d(TAG, "- Name: " + savingsItem.getName());
+                            Log.d(TAG, "- Current Amount: Rp" + formatNumber(savingsItem.getCurrentAmount()));
+                            Log.d(TAG, "- Target Amount: Rp" + formatNumber(savingsItem.getTargetAmount()));
+
+                            // Refresh the UI with updated data
+                            runOnUiThread(() -> {
+                                displaySavingsData();
+                                loadSavingImage();
+                                loadSavingHistory();
+                            });
+
+                        } catch (Exception e) {
+                            Log.e(TAG, "Error parsing savings data", e);
+                            Toast.makeText(this, "Error loading savings data", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Log.w(TAG, "Savings document not found");
+                        Toast.makeText(this, "Savings not found", Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error reloading savings details", e);
+                    Toast.makeText(this, "Error reloading data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
     // Helper methods
     private String formatCurrency(double amount) {
         DecimalFormat formatter = new DecimalFormat("#,###");
@@ -805,18 +925,4 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         Log.d(TAG, "Session ended at: " + CURRENT_DATE_TIME);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        
-        if (requestCode == 2002 && resultCode == RESULT_OK) {
-            // Returning from edit savings activity
-            Log.d(TAG, "Returning from edit savings, refreshing data");
-            
-            // Refresh savings data from Firestore
-            if (savingsId != null) {
-                fetchSavingsFromFirestore();
-            }
-        }
-    }
 }

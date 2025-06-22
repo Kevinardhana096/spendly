@@ -45,6 +45,8 @@ import java.util.Map;
 public class AddTransactionActivity extends AppCompatActivity {
 
     private static final String TAG = "AddTransactionActivity";
+    private static final int REQUEST_VERIFY_PIN_TRANSACTION = 2001;
+    
     private ImageView btnBack;
     private CardView btnExpenses, btnIncome, btnDate;
     private TextView tvDateSelected;
@@ -75,12 +77,14 @@ public class AddTransactionActivity extends AppCompatActivity {
     private BudgetRepository budgetRepository;
 
     // Format for currency display
-    private NumberFormat currencyFormatter;
-
-    // Date formatter
+    private NumberFormat currencyFormatter;    // Date formatter
     private SimpleDateFormat dateFormatter;
+    
+    // Temporary data for PIN verification
+    private Transaction pendingTransaction;
+    private boolean pendingAddMore = false;
 
-    // PIN verification dialog components
+    // PIN verification dialog components (legacy - to be replaced)
     private Dialog pinVerificationDialog;
     private View[] pinDots;
     private TextView[] numberButtons;
@@ -255,12 +259,26 @@ public class AddTransactionActivity extends AppCompatActivity {
                 // startActivityForResult(intent, 100);
             });
         }
-    }
-
-    @Override
+    }    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 100 && resultCode == RESULT_OK) {
+        
+        if (requestCode == REQUEST_VERIFY_PIN_TRANSACTION) {
+            if (resultCode == RESULT_OK) {
+                // PIN verified successfully, proceed with transaction
+                Log.d(TAG, "PIN verified successfully, proceeding to save transaction");
+                if (pendingTransaction != null) {
+                    processSaveTransaction(pendingTransaction, pendingAddMore);
+                }
+            } else {
+                // PIN verification failed or cancelled
+                Log.d(TAG, "PIN verification cancelled or failed");
+                Toast.makeText(this, "PIN verification required to complete transaction", Toast.LENGTH_SHORT).show();
+            }
+            // Reset pending transaction data
+            pendingTransaction = null;
+            pendingAddMore = false;
+        } else if (requestCode == 100 && resultCode == RESULT_OK) {
             // Refresh budget categories after setup
             loadBudgetCategories();
         }
@@ -406,16 +424,16 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             // Format as currency for display
             String formattedAmount = currencyFormatter.format(amount);
-            transaction.setFormattedAmount(formattedAmount);
-
-            // Check if PIN is required
+            transaction.setFormattedAmount(formattedAmount);            // Check if PIN is required
             SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
             boolean isPinRequired = prefs.getBoolean("pin_set", false);
             String savedPin = prefs.getString("user_pin", "");
 
             if (isPinRequired && !savedPin.isEmpty()) {
-                // Show PIN verification dialog
-                showPinVerificationDialog(transaction, addMore);
+                // Store transaction and verify PIN using VerifyPinActivity
+                pendingTransaction = transaction;
+                pendingAddMore = addMore;
+                verifyPinForTransaction();
             } else {
                 // No PIN required, save directly
                 processSaveTransaction(transaction, addMore);
@@ -426,6 +444,27 @@ public class AddTransactionActivity extends AppCompatActivity {
             etAmount.requestFocus();
             Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void verifyPinForTransaction() {
+        Log.d(TAG, "Starting PIN verification for transaction: " + 
+              (pendingTransaction != null ? pendingTransaction.getFormattedAmount() : "unknown amount"));
+        
+        Intent intent = new Intent(this, VerifyPinActivity.class);
+        intent.putExtra(VerifyPinActivity.EXTRA_VERIFICATION_TYPE, VerifyPinActivity.TYPE_ADD_TRANSACTION);
+        
+        // Pass verification data
+        Bundle verificationData = new Bundle();
+        if (pendingTransaction != null) {
+            verificationData.putDouble("amount", pendingTransaction.getAmount());
+            verificationData.putString("category", pendingTransaction.getCategory());
+            verificationData.putString("type", pendingTransaction.getType());
+            verificationData.putString("formatted_amount", pendingTransaction.getFormattedAmount());
+        }
+        verificationData.putBoolean("add_more", pendingAddMore);
+        intent.putExtra(VerifyPinActivity.EXTRA_VERIFICATION_DATA, verificationData);
+        
+        startActivityForResult(intent, REQUEST_VERIFY_PIN_TRANSACTION);
     }
 
     /**
