@@ -45,7 +45,7 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
 
     // Current context - Updated to 2025-06-21 19:30:30 UTC
     private static final String CURRENT_DATE_TIME = "2025-06-21 19:30:30";
-    private static final String CURRENT_USER = "nowriafisda";
+    private static final String CURRENT_USER = "Kevin Ardhana";
     private static final long CURRENT_TIMESTAMP = 1719345030000L; // 2025-06-21 19:30:30 UTC
 
     // UI Components - Simplified (removed bottom navigation)
