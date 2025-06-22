@@ -90,11 +90,23 @@
             android:layout_centerVertical="true"
             android:layout_marginRight="16dp"
             android:src="@drawable/ic_visibility_off"
-            app:tint="#9CA3AF" />
+            app:tint="#9CA3AF" />    </RelativeLayout>
 
-    </RelativeLayout>
-
-    <!-- Login Button -->
+    <!-- Forgot Password Link -->
+    <TextView
+        android:id="@+id/forgotPasswordText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/forgot_password"
+        android:textSize="14sp"
+        android:textColor="#6366F1"
+        android:fontFamily="sans-serif-medium"
+        android:layout_gravity="end"
+        android:layout_marginBottom="32dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="?android:attr/selectableItemBackground"
+        android:padding="8dp" />    <!-- Login Button -->
     <Button
         android:id="@+id/loginButton"
         android:layout_width="match_parent"
@@ -104,7 +116,7 @@
         android:textSize="16sp"
         android:fontFamily="sans-serif-medium"
         android:background="@drawable/button_background"
-        android:layout_marginTop="145dp"
+        android:layout_marginTop="113dp"
         android:layout_marginBottom="24dp" />
 
     <!-- Sign Up Link -->

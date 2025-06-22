@@ -8,6 +8,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.spendly.R;
@@ -21,11 +22,11 @@ import com.google.firebase.firestore.FirebaseFirestore;
 public class SignInActivity extends AppCompatActivity {
 
     private static final String TAG = "SignInActivity";
-    
-    private EditText emailEditText;
+      private EditText emailEditText;
     private EditText passwordEditText;
     private Button loginButton;
     private TextView signUpTextView;
+    private TextView forgotPasswordTextView;
 
     // Firebase Auth
     private FirebaseAuth mAuth;
@@ -53,9 +54,7 @@ public class SignInActivity extends AppCompatActivity {
 
         // Check if user is already signed in
         checkCurrentUser();
-    }
-
-    /**
+    }    /**
      * Initialize all views
      */
     private void initializeViews() {
@@ -63,6 +62,7 @@ public class SignInActivity extends AppCompatActivity {
         passwordEditText = findViewById(R.id.passwordEditText);
         loginButton = findViewById(R.id.loginButton);
         signUpTextView = findViewById(R.id.signUpText);
+        forgotPasswordTextView = findViewById(R.id.forgotPasswordText);
 
         // Set login button click listener
         loginButton.setOnClickListener(v -> attemptLogin());
@@ -72,6 +72,12 @@ public class SignInActivity extends AppCompatActivity {
             Log.d(TAG, "Navigate to SignUp clicked");
             Intent intent = new Intent(getApplicationContext(), SignUpActivity.class);
             startActivity(intent);
+        });
+
+        // Set forgot password text click listener
+        forgotPasswordTextView.setOnClickListener(v -> {
+            Log.d(TAG, "Forgot password clicked");
+            showForgotPasswordDialog();
         });
     }
 
@@ -322,12 +328,71 @@ public class SignInActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish(); // Close this activity so user can't go back
-    }
-
-    private void goToSetPinCodeActivity() {
+    }    private void goToSetPinCodeActivity() {
         Intent intent = new Intent(getApplicationContext(), SetPinCodeActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish(); // Close this activity so user can't go back
+    }
+
+    /**
+     * Show forgot password dialog
+     */
+    private void showForgotPasswordDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.reset_password);
+        
+        // Create EditText for email input
+        final EditText emailInput = new EditText(this);
+        emailInput.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);
+        emailInput.setHint(R.string.enter_email_reset);
+        
+        // Pre-fill with current email if available
+        String currentEmail = emailEditText.getText().toString().trim();
+        if (!currentEmail.isEmpty()) {
+            emailInput.setText(currentEmail);
+        }
+        
+        builder.setView(emailInput);
+        
+        builder.setPositiveButton(R.string.reset_password, (dialog, which) -> {
+            String email = emailInput.getText().toString().trim();
+            if (email.isEmpty()) {
+                Toast.makeText(getApplicationContext(), "Please enter your email address", Toast.LENGTH_SHORT).show();
+            } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                Toast.makeText(getApplicationContext(), "Please enter a valid email address", Toast.LENGTH_SHORT).show();
+            } else {
+                sendPasswordResetEmail(email);
+            }
+        });
+        
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        
+        builder.show();
+    }
+
+    /**
+     * Send password reset email using Firebase Auth
+     */
+    private void sendPasswordResetEmail(String email) {
+        Log.d(TAG, "Sending password reset email to: " + email);
+        
+        mAuth.sendPasswordResetEmail(email)
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        Log.d(TAG, "✅ Password reset email sent successfully");
+                        Toast.makeText(getApplicationContext(), 
+                                getString(R.string.reset_email_sent), 
+                                Toast.LENGTH_LONG).show();
+                    } else {
+                        Log.e(TAG, "❌ Failed to send password reset email", task.getException());
+                        String errorMessage = task.getException() != null ? 
+                                task.getException().getMessage() : 
+                                getString(R.string.reset_email_error);
+                        Toast.makeText(getApplicationContext(), 
+                                getString(R.string.reset_email_error) + ": " + errorMessage,
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 }
