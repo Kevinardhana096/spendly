@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.text.Editable;
@@ -41,6 +42,7 @@ public class AddSavingsActivity extends AppCompatActivity {
     private static final int CAMERA_REQUEST_CODE = 1001;
     private static final int GALLERY_REQUEST_CODE = 1002;
     private static final int CAMERA_PERMISSION_CODE = 1003;
+    private static final int STORAGE_PERMISSION_CODE = 1004;
 
     private ImageView btnBack, ivCategoryIcon, ivTargetPhoto;
     private LinearLayout categoryContainer, dateContainer, photoPlaceholder;
@@ -55,6 +57,11 @@ public class AddSavingsActivity extends AppCompatActivity {
     private int selectedCategoryIcon = R.drawable.ic_food;
     private int selectedCategoryColor = R.color.orange_primary;
     private Uri selectedPhotoUri;
+
+    // Edit mode variables
+    private boolean isEditMode = false;
+    private String editSavingsId;
+    private com.example.spendly.model.SavingsItem editSavingsItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,10 +123,131 @@ public class AddSavingsActivity extends AppCompatActivity {
     }
 
     private void initializeData() {
-        // Set default completion date (1 year from now)
+        // Check if this is edit mode
+        Intent intent = getIntent();
+        if (intent != null && intent.getBooleanExtra("edit_mode", false)) {
+            isEditMode = true;
+            editSavingsId = intent.getStringExtra("savings_id");
+            editSavingsItem = (com.example.spendly.model.SavingsItem) intent.getSerializableExtra("savings_item");
+            
+            if (editSavingsItem != null) {
+                setupEditMode();
+                return;
+            }
+        }
+        
+        // Normal add mode - set default completion date (1 year from now)
         completionCalendar.add(Calendar.YEAR, 1);
         tvCompletionDate.setText(dateFormat.format(completionCalendar.getTime()));
         tvCompletionDate.setTextColor(getResources().getColor(R.color.black));
+    }
+
+    private void setupEditMode() {
+        // Update title and button text
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle("Edit Savings Goal");
+        }
+        btnAddTarget.setText("Update Goal");
+
+        // Fill in existing data
+        etTargetName.setText(editSavingsItem.getName());
+        etTotalAmount.setText(String.valueOf((int) editSavingsItem.getTargetAmount()));
+        selectedCategory = editSavingsItem.getCategory();
+        
+        // Set completion date
+        if (editSavingsItem.getCompletionDate() > 0) {
+            completionCalendar.setTimeInMillis(editSavingsItem.getCompletionDate());
+            tvCompletionDate.setText(dateFormat.format(completionCalendar.getTime()));
+            tvCompletionDate.setTextColor(getResources().getColor(R.color.black));
+        }
+        
+        // Load existing photo if available
+        if (editSavingsItem.getPhotoUri() != null && !editSavingsItem.getPhotoUri().isEmpty()) {
+            selectedPhotoUri = Uri.parse(editSavingsItem.getPhotoUri());
+            loadImageFromUri(selectedPhotoUri);
+        }
+        
+        // Update category display
+        updateCategoryDisplay();
+    }
+
+    private void loadImageFromUri(Uri uri) {
+        try {
+            // First try direct URI loading
+            if (uri.toString().startsWith("http")) {
+                // Firebase Storage URL - use Glide
+                com.bumptech.glide.Glide.with(this)
+                        .load(uri.toString())
+                        .placeholder(R.drawable.placeholder_green)
+                        .error(R.drawable.placeholder_green)
+                        .into(ivTargetPhoto);
+            } else {
+                // Local URI - use Glide with better error handling
+                com.bumptech.glide.Glide.with(this)
+                        .load(uri)
+                        .placeholder(R.drawable.placeholder_green)
+                        .error(R.drawable.placeholder_green)
+                        .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                            @Override
+                            public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model, 
+                                    com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                    boolean isFirstResource) {
+                                // If Glide fails, try loading with MediaStore or fallback
+                                loadImageWithFallback(uri);
+                                return true;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, 
+                                    com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                    com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                                return false;
+                            }
+                        })
+                        .into(ivTargetPhoto);
+            }
+            
+            ivTargetPhoto.setVisibility(View.VISIBLE);
+            photoPlaceholder.setVisibility(View.GONE);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Fallback to placeholder
+            loadImageWithFallback(uri);
+        }
+    }
+
+    private void loadImageWithFallback(Uri uri) {
+        try {
+            // Try with MediaStore first
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+            ivTargetPhoto.setImageBitmap(bitmap);
+            ivTargetPhoto.setVisibility(View.VISIBLE);
+            photoPlaceholder.setVisibility(View.GONE);
+        } catch (SecurityException se) {
+            // SecurityException - show placeholder and inform user
+            android.util.Log.w("AddSavingsActivity", "SecurityException accessing image: " + se.getMessage());
+            showImagePlaceholder();
+            Toast.makeText(this, "Cannot access selected image due to permissions. Please try another image.", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            // Other exceptions - try direct URI as last resort
+            try {
+                ivTargetPhoto.setImageURI(uri);
+                ivTargetPhoto.setVisibility(View.VISIBLE);
+                photoPlaceholder.setVisibility(View.GONE);
+            } catch (Exception ex) {
+                // Final fallback to placeholder
+                showImagePlaceholder();
+                Toast.makeText(this, "Failed to load selected image. Please try another image.", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void showImagePlaceholder() {
+        ivTargetPhoto.setImageResource(R.drawable.placeholder_green);
+        ivTargetPhoto.setVisibility(View.VISIBLE);
+        photoPlaceholder.setVisibility(View.GONE);
+        selectedPhotoUri = null; // Clear the URI since we can't use it
     }
 
     private void showCategorySelector() {
@@ -231,7 +359,25 @@ public class AddSavingsActivity extends AppCompatActivity {
     }
 
     private void openGallery() {
+        // Check for storage permission (different for different Android versions)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, STORAGE_PERMISSION_CODE);
+                return;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
+                return;
+            }
+        }
+
         Intent galleryIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        // Add flags to ensure we can read the URI
+        galleryIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            galleryIntent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        }
         startActivityForResult(galleryIntent, GALLERY_REQUEST_CODE);
     }
 
@@ -248,22 +394,26 @@ public class AddSavingsActivity extends AppCompatActivity {
                         ivTargetPhoto.setImageBitmap(imageBitmap);
                         ivTargetPhoto.setVisibility(View.VISIBLE);
                         photoPlaceholder.setVisibility(View.GONE);
+                        // For camera images, we don't set selectedPhotoUri since it's a bitmap
+                        selectedPhotoUri = null;
                         updateAddButton();
                     }
                 }
             } else if (requestCode == GALLERY_REQUEST_CODE && data != null) {
                 selectedPhotoUri = data.getData();
                 if (selectedPhotoUri != null) {
+                    // Take persistent permission for the URI
                     try {
-                        Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), selectedPhotoUri);
-                        ivTargetPhoto.setImageBitmap(bitmap);
-                        ivTargetPhoto.setVisibility(View.VISIBLE);
-                        photoPlaceholder.setVisibility(View.GONE);
-                        updateAddButton();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                            getContentResolver().takePersistableUriPermission(selectedPhotoUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        }
+                    } catch (SecurityException e) {
+                        // Permission not available for this URI, continue anyway
+                        android.util.Log.w("AddSavingsActivity", "Could not take persistent permission: " + e.getMessage());
                     }
+                    
+                    loadImageFromUri(selectedPhotoUri);
+                    updateAddButton();
                 }
             }
         }
@@ -278,6 +428,12 @@ public class AddSavingsActivity extends AppCompatActivity {
                 openCamera();
             } else {
                 Toast.makeText(this, "Camera permission required", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == STORAGE_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                openGallery();
+            } else {
+                Toast.makeText(this, "Storage permission required to access gallery", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -315,34 +471,83 @@ public class AddSavingsActivity extends AppCompatActivity {
                 return;
             }
 
-            // Create target data
-            SavingsTarget savingsTarget = new SavingsTarget(
-                    targetName,
-                    selectedCategory,
-                    amount,
-                    completionCalendar.getTimeInMillis(),
-                    selectedPhotoUri != null ? selectedPhotoUri.toString() : null,
-                    System.currentTimeMillis()
-            );
-
-            // Prepare result intent with all necessary data
-            Intent resultIntent = new Intent();
-            resultIntent.putExtra("target_name", targetName);
-            resultIntent.putExtra("target_category", selectedCategory);
-            resultIntent.putExtra("target_amount", amount);
-            resultIntent.putExtra("completion_date", completionCalendar.getTimeInMillis());
-            resultIntent.putExtra("completion_date_str", dateFormat.format(completionCalendar.getTime()));
-            resultIntent.putExtra("photo_uri", selectedPhotoUri != null ? selectedPhotoUri.toString() : null);
-            resultIntent.putExtra("amount_formatted", formatNumber((long) amount));
-            resultIntent.putExtra("created_at", System.currentTimeMillis());
-
-            // Set the result and finish
-            setResult(RESULT_OK, resultIntent);
-            finish();
+            if (isEditMode) {
+                // Update existing savings in Firestore
+                updateSavingsInFirestore(targetName, amount);
+            } else {
+                // Create new target (original functionality)
+                createNewTarget(targetName, amount);
+            }
 
         } catch (NumberFormatException e) {
             Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void updateSavingsInFirestore(String targetName, double amount) {
+        if (editSavingsId == null) {
+            Toast.makeText(this, "Error: No savings ID found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show loading state
+        btnAddTarget.setEnabled(false);
+        btnAddTarget.setText("Updating...");
+
+        // Prepare update data
+        java.util.Map<String, Object> updateData = new java.util.HashMap<>();
+        updateData.put("name", targetName);
+        updateData.put("category", selectedCategory);
+        updateData.put("targetAmount", amount);
+        updateData.put("completionDate", completionCalendar.getTimeInMillis());
+        if (selectedPhotoUri != null) {
+            updateData.put("photoUri", selectedPhotoUri.toString());
+        }
+
+        // Update in Firestore
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser().getUid())
+                .collection("savings")
+                .document(editSavingsId)
+                .update(updateData)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Savings goal updated successfully!", Toast.LENGTH_SHORT).show();
+                    setResult(RESULT_OK);
+                    finish();
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to update: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    btnAddTarget.setEnabled(true);
+                    btnAddTarget.setText("Update Goal");
+                });
+    }
+
+    private void createNewTarget(String targetName, double amount) {
+        // Create target data (original functionality)
+        SavingsTarget savingsTarget = new SavingsTarget(
+                targetName,
+                selectedCategory,
+                amount,
+                completionCalendar.getTimeInMillis(),
+                selectedPhotoUri != null ? selectedPhotoUri.toString() : null,
+                System.currentTimeMillis()
+        );
+
+        // Prepare result intent with all necessary data
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra("target_name", targetName);
+        resultIntent.putExtra("target_category", selectedCategory);
+        resultIntent.putExtra("target_amount", amount);
+        resultIntent.putExtra("completion_date", completionCalendar.getTimeInMillis());
+        resultIntent.putExtra("completion_date_str", dateFormat.format(completionCalendar.getTime()));
+        resultIntent.putExtra("photo_uri", selectedPhotoUri != null ? selectedPhotoUri.toString() : null);
+        resultIntent.putExtra("amount_formatted", formatNumber((long) amount));
+        resultIntent.putExtra("created_at", System.currentTimeMillis());
+
+        // Set the result and finish
+        setResult(RESULT_OK, resultIntent);
+        finish();
     }
 
     private String formatNumber(long number) {
@@ -366,5 +571,48 @@ public class AddSavingsActivity extends AppCompatActivity {
             this.photoUri = photoUri;
             this.createdAt = createdAt;
         }
+    }
+
+    private void updateCategoryDisplay() {
+        tvSelectedCategory.setText(selectedCategory);
+        
+        // Update icon and color based on category
+        switch (selectedCategory.toLowerCase()) {
+            case "food & beverages":
+                selectedCategoryIcon = R.drawable.ic_food;
+                selectedCategoryColor = R.color.orange_primary;
+                break;
+            case "transportation":
+                selectedCategoryIcon = R.drawable.ic_transportation;
+                selectedCategoryColor = R.color.blue_primary;
+                break;
+            case "shopping":
+                selectedCategoryIcon = R.drawable.ic_shopping;
+                selectedCategoryColor = R.color.pink_primary;
+                break;
+            case "entertainment":
+                selectedCategoryIcon = R.drawable.ic_others;
+                selectedCategoryColor = R.color.red_primary;
+                break;
+            case "bills & utilities":
+                selectedCategoryIcon = R.drawable.ic_bills;
+                selectedCategoryColor = R.color.purple_primary;
+                break;
+            case "health":
+                selectedCategoryIcon = R.drawable.ic_health;
+                selectedCategoryColor = R.color.green_primary;
+                break;
+            case "education":
+                selectedCategoryIcon = R.drawable.ic_others;
+                selectedCategoryColor = R.color.blue_secondary;
+                break;
+            default:
+                selectedCategoryIcon = R.drawable.ic_other;
+                selectedCategoryColor = R.color.gray_primary;
+                break;
+        }
+        
+        ivCategoryIcon.setImageResource(selectedCategoryIcon);
+        ivCategoryIcon.setColorFilter(ContextCompat.getColor(this, selectedCategoryColor));
     }
 }

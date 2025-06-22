@@ -297,17 +297,19 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
                 Log.d(TAG, "User: " + CURRENT_USER + " finished viewing savings details");
                 finish(); // Clean back navigation
             });
-        }
-
-        // Edit button - edit savings details
+        }        // Edit button - edit savings details
         if (editButton != null) {
             editButton.setOnClickListener(v -> {
                 Log.d(TAG, "Edit button clicked for savings: " +
                         (savingsItem != null ? savingsItem.getName() : "unknown"));
                 Log.d(TAG, "User: " + CURRENT_USER + " wants to edit savings");
 
-                // TODO: Navigate to edit savings activity
-                Toast.makeText(this, "Edit feature coming soon", Toast.LENGTH_SHORT).show();
+                // Navigate to edit savings activity
+                Intent editIntent = new Intent(SavingsDetailActivity.this, AddSavingsActivity.class);
+                editIntent.putExtra("edit_mode", true);
+                editIntent.putExtra("savings_item", savingsItem);
+                editIntent.putExtra("savings_id", savingsId);
+                startActivityForResult(editIntent, 2002);
             });
         }
 
@@ -568,9 +570,7 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         });
 
         builder.show();
-    }
-
-    private void addMoneyToSavings(double amount) {
+    }    private void addMoneyToSavings(double amount) {
         if (currentUser == null || savingsId == null) {
             Log.e(TAG, "Cannot add money - user or savingsId is null");
             return;
@@ -603,59 +603,132 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         historyData.put("userId", CURRENT_USER);
         historyData.put("savingsId", savingsId);
 
+        // Create transaction for transaction history (savings as expense)
+        Map<String, Object> transactionData = new HashMap<>();
+        transactionData.put("amount", amount);
+        transactionData.put("category", "Savings");
+        transactionData.put("type", "expense"); // Savings is an expense from available balance
+        transactionData.put("description", "Money transferred to savings: " + savingsItem.getName());
+        transactionData.put("date", CURRENT_TIMESTAMP);
+        transactionData.put("createdAt", CURRENT_TIMESTAMP);
+        transactionData.put("userId", currentUser.getUid());
+        transactionData.put("formattedAmount", formatCurrency(amount));
+
         // Update savings document
         Map<String, Object> updateData = new HashMap<>();
         updateData.put("currentAmount", newCurrentAmount);
 
         Log.d(TAG, "Saving transaction to Firestore...");
 
-        // Start by adding history
-        db.collection("users")
-                .document(currentUser.getUid())
-                .collection("savings")
-                .document(savingsId)
-                .collection("history")
-                .add(historyData)
-                .addOnSuccessListener(documentReference -> {
-                    Log.d(TAG, "History added successfully with ID: " + documentReference.getId());
+        // First, check user's current balance
+        db.collection("users").document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Double currentBalance = documentSnapshot.getDouble("currentBalance");
+                        if (currentBalance == null) currentBalance = 0.0;
 
-                    // Then update the savings amount
-                    db.collection("users")
-                            .document(currentUser.getUid())
-                            .collection("savings")
-                            .document(savingsId)
-                            .update(updateData)
-                            .addOnSuccessListener(aVoid -> {
-                                Log.d(TAG, "Savings amount updated successfully");
-                                Log.d(TAG, "Transaction completed for user: " + CURRENT_USER);
-                                Log.d(TAG, "Updated from Rp" + formatNumber(savingsItem.getCurrentAmount()) +
-                                        " to Rp" + formatNumber(newCurrentAmount));
+                        Log.d(TAG, "Current user balance: Rp" + formatNumber(currentBalance));
 
-                                // Update local data
-                                savingsItem.setCurrentAmount(newCurrentAmount);
+                        if (currentBalance >= amount) {
+                            // User has sufficient balance, proceed with transactions
+                            double newBalance = currentBalance - amount;
+                            Log.d(TAG, "New balance will be: Rp" + formatNumber(newBalance));
 
-                                // Refresh UI
-                                displaySavingsData();
-                                loadSavingHistory();
+                            // Start transaction: Add to savings history
+                            db.collection("users")
+                                    .document(currentUser.getUid())
+                                    .collection("savings")
+                                    .document(savingsId)
+                                    .collection("history")
+                                    .add(historyData)
+                                    .addOnSuccessListener(historyRef -> {
+                                        Log.d(TAG, "Savings history added successfully");
 
-                                String successMessage = "Money added successfully!\n" +
-                                        "New balance: " + formatCurrency(newCurrentAmount) + "\n" +
-                                        "Progress: " + String.format("%.1f%%", newProgress);
+                                        // Update savings amount
+                                        db.collection("users")
+                                                .document(currentUser.getUid())
+                                                .collection("savings")
+                                                .document(savingsId)
+                                                .update(updateData)
+                                                .addOnSuccessListener(aVoid -> {
+                                                    Log.d(TAG, "Savings amount updated successfully");
 
-                                Toast.makeText(this, successMessage, Toast.LENGTH_LONG).show();
+                                                    // Add transaction to transaction history
+                                                    db.collection("users")
+                                                            .document(currentUser.getUid())
+                                                            .collection("transactions")
+                                                            .add(transactionData)
+                                                            .addOnSuccessListener(transactionRef -> {
+                                                                Log.d(TAG, "Transaction history added successfully");
 
-                                Log.d(TAG, "=== TRANSACTION COMPLETED SUCCESSFULLY ===");
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error updating savings amount", e);
-                                Toast.makeText(this, "Failed to update savings: " + e.getMessage(),
-                                        Toast.LENGTH_SHORT).show();
-                            });
+                                                                // Update user balance
+                                                                db.collection("users")
+                                                                        .document(currentUser.getUid())
+                                                                        .update("currentBalance", newBalance)
+                                                                        .addOnSuccessListener(balanceUpdate -> {
+                                                                            Log.d(TAG, "✅ ALL OPERATIONS COMPLETED SUCCESSFULLY");
+                                                                            Log.d(TAG, "- Savings updated: " + formatCurrency(newCurrentAmount));
+                                                                            Log.d(TAG, "- Balance reduced: " + formatCurrency(newBalance));
+                                                                            Log.d(TAG, "- Transaction recorded");
+                                                                            Log.d(TAG, "- Progress: " + String.format("%.1f%%", newProgress));
+
+                                                                            // Update local data
+                                                                            savingsItem.setCurrentAmount(newCurrentAmount);
+
+                                                                            // Refresh UI
+                                                                            displaySavingsData();
+                                                                            loadSavingHistory();
+
+                                                                            String successMessage = "Money added successfully!\n" +
+                                                                                    "Added: " + formatCurrency(amount) + "\n" +
+                                                                                    "New savings: " + formatCurrency(newCurrentAmount) + "\n" +
+                                                                                    "Progress: " + String.format("%.1f%%", newProgress) + "\n" +
+                                                                                    "Available balance: " + formatCurrency(newBalance);
+
+                                                                            Toast.makeText(this, successMessage, Toast.LENGTH_LONG).show();
+
+                                                                            // Set result to indicate changes were made
+                                                                            setResult(RESULT_OK);
+                                                                        })
+                                                                        .addOnFailureListener(e -> {
+                                                                            Log.e(TAG, "❌ Error updating user balance", e);
+                                                                            Toast.makeText(this, "Failed to update balance: " + e.getMessage(),
+                                                                                    Toast.LENGTH_SHORT).show();
+                                                                        });
+                                                            })
+                                                            .addOnFailureListener(e -> {
+                                                                Log.e(TAG, "❌ Error adding transaction history", e);
+                                                                Toast.makeText(this, "Failed to record transaction: " + e.getMessage(),
+                                                                        Toast.LENGTH_SHORT).show();
+                                                            });
+                                                })
+                                                .addOnFailureListener(e -> {
+                                                    Log.e(TAG, "❌ Error updating savings amount", e);
+                                                    Toast.makeText(this, "Failed to update savings: " + e.getMessage(),
+                                                            Toast.LENGTH_SHORT).show();
+                                                });
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "❌ Error adding savings history", e);
+                                        Toast.makeText(this, "Failed to add money: " + e.getMessage(),
+                                                Toast.LENGTH_SHORT).show();
+                                    });
+                        } else {
+                            Log.w(TAG, "Insufficient balance. Required: " + formatNumber(amount) + 
+                                    ", Available: " + formatNumber(currentBalance));
+                            Toast.makeText(this, "Insufficient balance!\n" +
+                                    "Required: " + formatCurrency(amount) + "\n" +
+                                    "Available: " + formatCurrency(currentBalance), Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        Log.e(TAG, "User document not found");
+                        Toast.makeText(this, "Error: User data not found", Toast.LENGTH_SHORT).show();
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error adding history", e);
-                    Toast.makeText(this, "Failed to add money: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Error checking user balance", e);
+                    Toast.makeText(this, "Error checking balance: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
@@ -730,5 +803,20 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         Log.d(TAG, "=== SavingsDetailActivity Destroyed ===");
         Log.d(TAG, "User: " + CURRENT_USER + " finished viewing savings details");
         Log.d(TAG, "Session ended at: " + CURRENT_DATE_TIME);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        if (requestCode == 2002 && resultCode == RESULT_OK) {
+            // Returning from edit savings activity
+            Log.d(TAG, "Returning from edit savings, refreshing data");
+            
+            // Refresh savings data from Firestore
+            if (savingsId != null) {
+                fetchSavingsFromFirestore();
+            }
+        }
     }
 }
