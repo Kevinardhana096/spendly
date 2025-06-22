@@ -2,19 +2,18 @@ package com.example.spendly.activity;
 
 import android.os.Bundle;
 import android.text.InputType;
-import android.text.TextUtils;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.example.spendly.R;
-import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.EmailAuthProvider;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 
 public class EditPasswordActivity extends AppCompatActivity {
     private ImageView btnBack;
@@ -24,25 +23,11 @@ public class EditPasswordActivity extends AppCompatActivity {
     private boolean isCurrentPasswordVisible = false;
     private boolean isNewPasswordVisible = false;
     private boolean isConfirmPasswordVisible = false;
-    
-    // Firebase
-    private FirebaseAuth mAuth;
-    private FirebaseUser currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_password);
-
-        // Initialize Firebase
-        mAuth = FirebaseAuth.getInstance();
-        currentUser = mAuth.getCurrentUser();
-
-        if (currentUser == null) {
-            Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
 
         initViews();
         setupClickListeners();
@@ -103,62 +88,24 @@ public class EditPasswordActivity extends AppCompatActivity {
         String newPassword = etNewPassword.getText().toString().trim();
         String confirmPassword = etConfirmPassword.getText().toString().trim();
 
-        if (!validatePasswords(currentPassword, newPassword, confirmPassword)) {
-            return;
+        if (validatePasswords(currentPassword, newPassword, confirmPassword)) {
+            // Save new password to database/API
+            // For now, just show success message
+            Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show();
+            finish();
         }
-
-        // Show loading state
-        btnSavePassword.setEnabled(false);
-        btnSavePassword.setText("Updating...");
-
-        // Get user email for re-authentication
-        String email = currentUser.getEmail();
-        if (email == null) {
-            Toast.makeText(this, "User email not found", Toast.LENGTH_SHORT).show();
-            resetSaveButton();
-            return;
-        }
-
-        // Create credential with current password
-        AuthCredential credential = EmailAuthProvider.getCredential(email, currentPassword);
-
-        // Re-authenticate user
-        currentUser.reauthenticate(credential)
-                .addOnSuccessListener(aVoid -> {
-                    // Update password
-                    currentUser.updatePassword(newPassword)
-                            .addOnSuccessListener(updateVoid -> {
-                                Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show();
-                                finish();
-                            })
-                            .addOnFailureListener(e -> {
-                                Toast.makeText(this, "Failed to update password: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                resetSaveButton();
-                            });
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Current password is incorrect", Toast.LENGTH_SHORT).show();
-                    etCurrentPassword.setError("Incorrect password");
-                    etCurrentPassword.requestFocus();
-                    resetSaveButton();
-                });
-    }
-
-    private void resetSaveButton() {
-        btnSavePassword.setEnabled(true);
-        btnSavePassword.setText("Save Password");
     }
 
     private boolean validatePasswords(String currentPassword, String newPassword, String confirmPassword) {
         // Validate current password
-        if (TextUtils.isEmpty(currentPassword)) {
+        if (currentPassword.isEmpty()) {
             etCurrentPassword.setError("Current password is required");
             etCurrentPassword.requestFocus();
             return false;
         }
 
         // Validate new password
-        if (TextUtils.isEmpty(newPassword)) {
+        if (newPassword.isEmpty()) {
             etNewPassword.setError("New password is required");
             etNewPassword.requestFocus();
             return false;
@@ -177,7 +124,7 @@ public class EditPasswordActivity extends AppCompatActivity {
         }
 
         // Validate confirm password
-        if (TextUtils.isEmpty(confirmPassword)) {
+        if (confirmPassword.isEmpty()) {
             etConfirmPassword.setError("Please confirm your new password");
             etConfirmPassword.requestFocus();
             return false;

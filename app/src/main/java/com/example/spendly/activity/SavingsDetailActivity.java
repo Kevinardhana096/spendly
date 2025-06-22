@@ -766,90 +766,13 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
             }
             // Reset pending amount
             pendingAddAmount = 0.0;
-        } else if (requestCode == REQUEST_EDIT_SAVINGS) {
-            if (resultCode == RESULT_OK) {
+        } else if (requestCode == REQUEST_EDIT_SAVINGS) {            if (resultCode == RESULT_OK) {
                 // Savings edited successfully, refresh data
                 Log.d(TAG, "Savings edited successfully, refreshing data");
-                loadSavingsDetails();
-            }        }
-    }
-
-    private void loadSavingsDetails() {
-        if (savingsId == null || savingsId.isEmpty()) {
-            Log.e(TAG, "Cannot load savings details - savingsId is null or empty");
-            Toast.makeText(this, "Error: Savings ID not found", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
+                displaySavingsData();
+                loadSavingHistory();
+            }
         }
-
-        if (currentUser == null) {
-            Log.e(TAG, "Cannot load savings details - user not logged in");
-            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
-
-        Log.d(TAG, "=== RELOADING SAVINGS DETAILS ===");
-        Log.d(TAG, "User: " + currentUser.getUid());
-        Log.d(TAG, "Savings ID: " + savingsId);
-
-        // Fetch fresh data from Firestore
-        db.collection("users")
-                .document(currentUser.getUid())
-                .collection("savings")
-                .document(savingsId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        Log.d(TAG, "✅ Savings details reloaded successfully");
-                        
-                        // Update the savingsItem with fresh data
-                        try {
-                            String name = documentSnapshot.getString("name");
-                            String category = documentSnapshot.getString("category");
-                            Double targetAmount = documentSnapshot.getDouble("targetAmount");
-                            Double currentAmount = documentSnapshot.getDouble("currentAmount");
-                            Long completionDate = documentSnapshot.getLong("completionDate");
-                            String photoUri = documentSnapshot.getString("photoUri");
-                            Long createdAt = documentSnapshot.getLong("createdAt");
-
-                            // Update savingsItem
-                            savingsItem.setName(name != null ? name : "Unknown");
-                            savingsItem.setCategory(category != null ? category : "General");
-                            savingsItem.setTargetAmount(targetAmount != null ? targetAmount : 0.0);
-                            savingsItem.setCurrentAmount(currentAmount != null ? currentAmount : 0.0);
-                            savingsItem.setCompletionDate(completionDate != null ? completionDate : System.currentTimeMillis());
-                            savingsItem.setPhotoUri(photoUri);
-                            if (createdAt != null) {
-                                savingsItem.setCreatedAt(createdAt);
-                            }
-
-                            Log.d(TAG, "Updated savings data:");
-                            Log.d(TAG, "- Name: " + savingsItem.getName());
-                            Log.d(TAG, "- Current Amount: Rp" + formatNumber(savingsItem.getCurrentAmount()));
-                            Log.d(TAG, "- Target Amount: Rp" + formatNumber(savingsItem.getTargetAmount()));
-
-                            // Refresh the UI with updated data
-                            runOnUiThread(() -> {
-                                displaySavingsData();
-                                loadSavingImage();
-                                loadSavingHistory();
-                            });
-
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error parsing savings data", e);
-                            Toast.makeText(this, "Error loading savings data", Toast.LENGTH_SHORT).show();
-                        }
-                    } else {
-                        Log.w(TAG, "Savings document not found");
-                        Toast.makeText(this, "Savings not found", Toast.LENGTH_SHORT).show();
-                        finish();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error reloading savings details", e);
-                    Toast.makeText(this, "Error reloading data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
     }
 
     // Helper methods

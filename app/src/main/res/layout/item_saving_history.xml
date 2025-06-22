@@ -56,13 +56,13 @@
         android:id="@+id/history_amount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="+Rp50.000"        android:textSize="16sp"
+        android:text="+Rp50.000"
+        android:textSize="16sp"
         android:textColor="@color/progress_green"
         android:fontFamily="sans-serif-bold"
         android:layout_gravity="center_vertical"
         android:layout_marginStart="8dp"
         android:minWidth="100dp"
-        android:gravity="end"
         android:textAlignment="textEnd" />
 
 </LinearLayout>

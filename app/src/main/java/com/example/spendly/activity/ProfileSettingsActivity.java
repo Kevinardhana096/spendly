@@ -74,20 +74,14 @@ public class ProfileSettingsActivity extends AppCompatActivity {
 
         btnEditProfile.setOnClickListener(v -> {
             // Open edit profile activity
-            Intent intent = new Intent(ProfileSettingsActivity.this, EditProfileActivity.class);
-            startActivityForResult(intent, 1001);
         });
 
         layoutChangePin.setOnClickListener(v -> {
             // Open change pin activity
-            Intent intent = new Intent(ProfileSettingsActivity.this, EditPinCodeActivity.class);
-            startActivity(intent);
         });
 
         layoutChangePassword.setOnClickListener(v -> {
             // Open change password activity
-            Intent intent = new Intent(ProfileSettingsActivity.this, EditPasswordActivity.class);
-            startActivity(intent);
         });
 
         btnLogout.setOnClickListener(v -> {
@@ -167,17 +161,6 @@ public class ProfileSettingsActivity extends AppCompatActivity {
                         Toast.makeText(ProfileSettingsActivity.this, "Failed to load user profile", Toast.LENGTH_SHORT).show();
                     }
                 });
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        
-        if (requestCode == 1001 && resultCode == RESULT_OK) {
-            // Profile was updated, reload user profile
-            loadUserProfile();
-            Toast.makeText(this, "Profile updated successfully", Toast.LENGTH_SHORT).show();
         }
     }
 }
