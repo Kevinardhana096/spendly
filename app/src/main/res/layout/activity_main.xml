@@ -7,13 +7,6 @@
     tools:context=".activity.MainActivity"
     android:id="@+id/main">
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="    app:maxImageSize=&quot;32dp&quot;"
-        tools:ignore="MissingConstraints" />
-
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/nav_host_fragment"
         android:layout_width="0dp"
@@ -27,7 +20,7 @@
         android:id="@+id/bottom_nav_container"
         android:layout_width="0dp"
         android:layout_height="80dp"
-        android:background="@android:color/transparent"
+        android:background="@color/nav_background"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -37,7 +30,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:labelVisibilityMode="unlabeled"
-            app:itemIconTint="@color/purple_primary"
+            app:itemIconTint="@drawable/nav_item_tint"
             app:itemTextColor="@color/nav_item_color"
             app:menu="@menu/bottom_nav_menu" />
 
@@ -49,13 +42,13 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="-30dp"
         android:src="@drawable/ic_add_bold"
-        app:backgroundTint="@color/white"
-        app:tint="@color/purple_primary"
+        app:backgroundTint="@color/fab_background"
+        app:tint="@color/fab_icon_tint"
         app:fabSize="normal"
         app:shapeAppearanceOverlay="@style/CircularFAB"
         app:borderWidth="0dp"
         app:elevation="6dp"
-        app:maxImageSize="62dp"
+        app:maxImageSize="32dp"
         app:layout_constraintBottom_toTopOf="@+id/bottom_nav_container"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

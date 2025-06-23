@@ -39,4 +39,21 @@
     <color name="card_highlight_background">#374151</color>
     <color name="text_tertiary">#6B7280</color>
     <color name="icon_secondary">#4B5563</color>
+
+    <color name="divider_color">#4B5563</color>
+    <color name="orange_primary">#F59E0B</color>
+    <color name="blue_primary">#3B82F6</color>
+    <color name="pink_primary">#EC4899</color>
+    <color name="green_primary">#10B981</color>
+    <color name="ripple_color">#4B5563</color>
+
+    <!-- Navigation colors -->
+    <color name="nav_background">#1F2937</color>
+    <color name="nav_item_color">#9CA3AF</color>
+    <color name="nav_item_inactive">#6B7280</color>
+
+    <!-- FAB colors -->
+    <color name="fab_background">#374151</color>
+    <color name="fab_icon_tint">#6366F1</color>
+
 </resources>

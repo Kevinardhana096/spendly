@@ -350,17 +350,86 @@ public class AddTransactionActivity extends AppCompatActivity {
     private void selectTransactionType(String type) {
         this.transactionType = type;
 
+        // Get references to the CardViews
+        CardView expenseCard = findViewById(R.id.btn_expenses);
+        CardView incomeCard = findViewById(R.id.btn_income);
+
+        // Find TextViews within the CardViews
+        TextView expenseText = findTextViewInCardView(expenseCard);
+        TextView incomeText = findTextViewInCardView(incomeCard);
+
         // Update UI to reflect the selected type
         if ("expense".equals(type)) {
-            btnExpenses.setBackgroundResource(R.drawable.transaction_type_selected_background);
-            btnIncome.setBackgroundResource(R.drawable.transaction_type_unselected_background);
+            // Expense selected - Red theme
+            if (expenseText != null) {
+                expenseText.setBackgroundResource(R.drawable.transaction_type_selected_background);
+                expenseText.setTextColor(ContextCompat.getColor(this, R.color.white));
+            }
+            if (incomeText != null) {
+                incomeText.setBackgroundResource(R.drawable.transaction_type_unselected_background);
+                incomeText.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+            }
+
+            // Add scale animation for selected button
+            expenseCard.animate()
+                    .scaleX(1.05f)
+                    .scaleY(1.05f)
+                    .setDuration(100)
+                    .withEndAction(() -> {
+                        expenseCard.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(100);
+                    });
+
             Toast.makeText(this, "Expense transaction selected", Toast.LENGTH_SHORT).show();
+
         } else {
-            btnExpenses.setBackgroundResource(R.drawable.transaction_type_unselected_background);
-            btnIncome.setBackgroundResource(R.drawable.transaction_type_selected_background);
+            // Income selected - Green theme
+            if (expenseText != null) {
+                expenseText.setBackgroundResource(R.drawable.transaction_type_unselected_background);
+                expenseText.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
+            }
+            if (incomeText != null) {
+                incomeText.setBackgroundResource(R.drawable.transaction_type_income_selected_background);
+                incomeText.setTextColor(ContextCompat.getColor(this, R.color.white));
+            }
+
+            // Add scale animation for selected button
+            incomeCard.animate()
+                    .scaleX(1.05f)
+                    .scaleY(1.05f)
+                    .setDuration(100)
+                    .withEndAction(() -> {
+                        incomeCard.animate()
+                                .scaleX(1f)
+                                .scaleY(1f)
+                                .setDuration(100);
+                    });
+
             Toast.makeText(this, "Income transaction selected", Toast.LENGTH_SHORT).show();
         }
     }
+
+    private TextView findTextViewInCardView(CardView cardView) {
+        if (cardView == null) return null;
+
+        try {
+            // Since the TextView is directly inside the CardView according to your XML
+            if (cardView.getChildCount() > 0 && cardView.getChildAt(0) instanceof TextView) {
+                return (TextView) cardView.getChildAt(0);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error finding TextView in CardView", e);
+        }
+        return null;
+    }
+
+    private void initializeTransactionTypeSelection() {
+        // Set default selection to expense
+        selectTransactionType("expense");
+    }
+
 
     private void showDatePickerDialog() {
         Calendar calendar = Calendar.getInstance();
