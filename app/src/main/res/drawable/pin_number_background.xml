@@ -4,5 +4,5 @@
     <stroke
         android:width="2dp"
         android:color="@color/input_border" />
-    <solid android:color="@color/white" />
+    <solid android:color="@color/pin_button_background" />
 </shape>

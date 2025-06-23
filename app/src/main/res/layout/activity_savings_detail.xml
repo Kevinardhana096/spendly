@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@color/background_primary">
 
     <!-- Header with Back Button -->
     <RelativeLayout
@@ -11,26 +11,27 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="24dp"
-        android:background="@android:color/white"
+        android:background="@color/card_background"
         android:elevation="2dp">
 
         <ImageView
             android:id="@+id/backButton"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@drawable/ic_arrow_back_blue"
+            android:src="@drawable/ic_arrow_back"
             android:layout_centerVertical="true"
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:padding="4dp" />
+            android:padding="4dp"
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Savings Detail"
             android:textSize="18sp"
-            android:textColor="#1F2937"
+            android:textColor="@color/text_primary"
             android:fontFamily="sans-serif-medium"
             android:layout_centerInParent="true" />
 
@@ -46,7 +47,8 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:tint="@color/text_primary" />
 
     </RelativeLayout>
 
@@ -68,6 +70,7 @@
                 android:layout_height="220dp"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/card_background"
                 android:layout_marginBottom="24dp">
 
                 <ImageView
@@ -96,7 +99,7 @@
                         android:layout_height="wrap_content"
                         android:text="Lamborghini Veneno"
                         android:textSize="20sp"
-                        android:textColor="#1F2937"
+                        android:textColor="@color/text_primary"
                         android:fontFamily="sans-serif-bold" />
 
                     <TextView
@@ -105,11 +108,11 @@
                         android:layout_height="wrap_content"
                         android:text="Target Goal 24 May 2026"
                         android:textSize="14sp"
-                        android:textColor="#6B7280"
+                        android:textColor="@color/text_secondary"
                         android:layout_marginTop="4dp"
                         android:drawableStart="@drawable/ic_calendar_small"
                         android:drawablePadding="6dp"
-                        app:drawableTint="#6B7280" />
+                        app:drawableTint="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -119,7 +122,7 @@
                     android:layout_height="36dp"
                     android:text="Edit"
                     android:textSize="13sp"
-                    android:textColor="#6366F1"
+                    android:textColor="@color/purple_primary"
                     android:layout_alignParentEnd="true"
                     android:layout_centerVertical="true"
                     style="@style/Widget.Material3.Button.TextButton"
@@ -134,7 +137,7 @@
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp"
                 android:layout_marginBottom="16dp"
-                app:cardBackgroundColor="#F8FAFC">
+                app:cardBackgroundColor="@color/card_highlight_background">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -147,7 +150,7 @@
                         android:layout_height="wrap_content"
                         android:text="Current Savings"
                         android:textSize="14sp"
-                        android:textColor="#6B7280"
+                        android:textColor="@color/text_secondary"
                         android:layout_marginBottom="8dp" />
 
                     <TextView
@@ -156,7 +159,7 @@
                         android:layout_height="wrap_content"
                         android:text="Rp2.150.000"
                         android:textSize="28sp"
-                        android:textColor="#1F2937"
+                        android:textColor="@color/text_primary"
                         android:fontFamily="sans-serif-bold" />
 
                 </LinearLayout>
@@ -181,7 +184,7 @@
                         android:layout_height="wrap_content"
                         android:text="Still needed"
                         android:textSize="14sp"
-                        android:textColor="#6B7280" />
+                        android:textColor="@color/text_secondary" />
 
                     <View
                         android:layout_width="0dp"
@@ -194,7 +197,7 @@
                         android:layout_height="wrap_content"
                         android:text="Rp59.997.850.000"
                         android:textSize="14sp"
-                        android:textColor="#1F2937"
+                        android:textColor="@color/text_primary"
                         android:fontFamily="sans-serif-medium" />
 
                 </LinearLayout>
@@ -209,7 +212,7 @@
                         android:layout_height="wrap_content"
                         android:text="Target amount"
                         android:textSize="14sp"
-                        android:textColor="#6B7280" />
+                        android:textColor="@color/text_secondary" />
 
                     <View
                         android:layout_width="0dp"
@@ -222,7 +225,7 @@
                         android:layout_height="wrap_content"
                         android:text="Rp60.000.000.000"
                         android:textSize="14sp"
-                        android:textColor="#1F2937"
+                        android:textColor="@color/text_primary"
                         android:fontFamily="sans-serif-medium" />
 
                 </LinearLayout>
@@ -236,11 +239,11 @@
                 android:layout_height="56dp"
                 android:text="+ Add Money"
                 android:textSize="16sp"
-                android:textColor="@android:color/white"
-                android:backgroundTint="#6366F1"
+                android:textColor="@color/white"
+                android:backgroundTint="@color/purple_primary"
                 app:cornerRadius="12dp"
                 app:icon="@drawable/ic_add_circle"
-                app:iconTint="@android:color/white"
+                app:iconTint="@color/white"
                 app:iconGravity="textStart"
                 android:layout_marginBottom="32dp" />
 
@@ -255,7 +258,7 @@
                     android:layout_height="wrap_content"
                     android:text="Transaction History"
                     android:textSize="18sp"
-                    android:textColor="#1F2937"
+                    android:textColor="@color/text_primary"
                     android:fontFamily="sans-serif-bold" />
 
                 <TextView
@@ -264,10 +267,11 @@
                     android:layout_height="wrap_content"
                     android:text="View All"
                     android:textSize="14sp"
-                    android:textColor="#6366F1"
+                    android:textColor="@color/purple_primary"
                     android:layout_alignParentEnd="true"
                     android:clickable="true"
                     android:focusable="true"
+                    android:background="?attr/selectableItemBackground"
                     android:padding="8dp"
                     android:visibility="gone" />
 
@@ -304,14 +308,14 @@
                         android:layout_height="64dp"
                         android:src="@drawable/ic_history_empty"
                         android:layout_marginBottom="16dp"
-                        app:tint="#D1D5DB" />
+                        app:tint="@color/icon_secondary" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="No History Yet"
                         android:textSize="16sp"
-                        android:textColor="#6B7280"
+                        android:textColor="@color/text_secondary"
                         android:fontFamily="sans-serif-medium"
                         android:layout_marginBottom="8dp" />
 
@@ -320,7 +324,7 @@
                         android:layout_height="wrap_content"
                         android:text="Start saving to see your transaction history"
                         android:textSize="14sp"
-                        android:textColor="#9CA3AF"
+                        android:textColor="@color/text_tertiary"
                         android:textAlignment="center" />
 
                 </LinearLayout>

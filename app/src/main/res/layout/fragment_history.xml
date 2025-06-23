@@ -20,8 +20,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_chart_pie"
-            android:layout_marginEnd="12dp"
-            app:tint="@color/black" />
+            android:layout_marginEnd="12dp"/>
 
         <TextView
             android:layout_width="0dp"
@@ -29,8 +28,7 @@
             android:layout_weight="1"
             android:text="History"
             android:textSize="20sp"
-            android:textStyle="bold"
-            android:textColor="@color/black" />
+            android:textStyle="bold"/>
 
         <ImageView
             android:id="@+id/btn_filter"
@@ -39,8 +37,7 @@
             android:src="@drawable/ic_filter"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:clickable="true"
-            android:focusable="true"
-            app:tint="@color/black" />
+            android:focusable="true" />
 
     </LinearLayout>
 

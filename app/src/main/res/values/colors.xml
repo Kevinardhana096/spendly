@@ -57,4 +57,20 @@
     <color name="background_gradient_start">#FFFFFF</color>
     <color name="background_gradient_center">#F3F4F6</color>
     <color name="background_gradient_end">#C7D2FE</color>
+
+    <color name="background_primary">#F8F9FA</color>
+
+    <color name="pin_button_background">#FFFFFF</color>
+    <color name="pin_button_border">#E5E7EB</color>
+
+    <color name="input_field_background">#F9FAFB</color>
+    <color name="overlay_background">#80000000</color>
+
+    <color name="pin_action_background">#F3F4F6</color>
+    <color name="pin_dot_empty_background">#FFFFFF</color>
+    <color name="ripple_color">#E5E7EB</color>
+
+    <color name="card_highlight_background">#F8FAFC</color>
+    <color name="text_tertiary">#9CA3AF</color>
+    <color name="icon_secondary">#D1D5DB</color>
 </resources>

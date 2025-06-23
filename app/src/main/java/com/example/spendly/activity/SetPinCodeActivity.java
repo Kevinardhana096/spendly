@@ -96,22 +96,44 @@ public class SetPinCodeActivity extends AppCompatActivity {
         // Number button click listeners
         for (int i = 0; i < numberButtons.length; i++) {
             final int number = i;
-            numberButtons[i].setOnClickListener(v -> onNumberClicked(number));
+            numberButtons[i].setOnClickListener(v -> {
+                animateButtonPress(v);
+                onNumberClicked(number);
+            });
         }
-        btnDelete.setOnClickListener(v -> onDeleteClicked());
+
+        btnDelete.setOnClickListener(v -> {
+            animateButtonPress(v);
+            onDeleteClicked();
+        });
 
         btnFingerprint.setOnClickListener(v -> {
-            // Handle fingerprint setup (optional)
+            animateButtonPress(v);
             Toast.makeText(this, "Fingerprint setup not implemented yet", Toast.LENGTH_SHORT).show();
         });
 
         btnSet.setOnClickListener(v -> onSetClicked());
     }
 
-    private boolean isUserRequiredToSetPin() {
-        // If this activity was started with an intent flag, user must set PIN
-        Intent intent = getIntent();
-        return intent != null && intent.hasExtra("requirePin") && intent.getBooleanExtra("requirePin", false);
+    private void animateButtonPress(View button) {
+        // Change text color to white when pressed
+        if (button instanceof TextView) {
+            TextView textView = (TextView) button;
+            textView.setTextColor(getResources().getColor(R.color.white, getTheme()));
+
+            // Reset text color after delay
+            button.postDelayed(() -> {
+                textView.setTextColor(getResources().getColor(R.color.text_primary, getTheme()));
+            }, 150);
+        } else if (button instanceof ImageView) {
+            ImageView imageView = (ImageView) button;
+            imageView.setColorFilter(getResources().getColor(R.color.white, getTheme()));
+
+            // Reset tint after delay
+            button.postDelayed(() -> {
+                imageView.setColorFilter(getResources().getColor(R.color.text_primary, getTheme()));
+            }, 150);
+        }
     }
 
     private void onNumberClicked(int number) {

@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_gray"
+    android:background="@color/background_primary"
     tools:context=".activity.EditProfileActivity"
     android:id="@+id/main">
 
@@ -16,7 +16,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:background="@color/white"
+        android:background="@color/card_background"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -30,7 +30,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
-            app:tint="@color/black" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"
@@ -39,7 +39,7 @@
             android:text="Edit Profile"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:gravity="center" />
 
         <!-- Empty view to balance the layout -->
@@ -68,7 +68,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/white"
+                android:background="@color/card_background"
                 android:padding="24dp"
                 android:layout_marginTop="1dp">
 
@@ -78,7 +78,7 @@
                     android:text="Your Profile"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="24dp" />
 
                 <!-- Profile Image with Edit Icon -->
@@ -96,7 +96,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             app:cardCornerRadius="60dp"
-                            app:cardElevation="4dp">
+                            app:cardElevation="4dp"
+                            app:cardBackgroundColor="@color/card_background">
 
                             <ImageView
                                 android:id="@+id/img_profile"
@@ -117,6 +118,7 @@
                             android:layout_marginBottom="4dp"
                             app:cardCornerRadius="18dp"
                             app:cardElevation="4dp"
+                            app:cardBackgroundColor="@color/purple_primary"
                             android:clickable="true"
                             android:focusable="true"
                             android:foreground="?attr/selectableItemBackground">
@@ -126,7 +128,6 @@
                                 android:layout_height="20dp"
                                 android:layout_gravity="center"
                                 android:src="@drawable/ic_edit"
-                                android:background="@color/purple_primary"
                                 app:tint="@color/white" />
 
                         </androidx.cardview.widget.CardView>
@@ -142,7 +143,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/white"
+                android:background="@color/card_background"
                 android:padding="24dp"
                 android:layout_marginTop="16dp">
 
@@ -178,7 +179,8 @@
                         android:hint="Nickname"
                         android:text="Ardhana"
                         android:textSize="14sp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
                         android:inputType="textPersonName" />
 
                 </com.google.android.material.textfield.TextInputLayout>
@@ -206,7 +208,8 @@
                         android:hint="Email"
                         android:text="chndra.ardhana@gmail.com"
                         android:textSize="14sp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
                         android:inputType="textEmailAddress" />
 
                 </com.google.android.material.textfield.TextInputLayout>
@@ -234,7 +237,8 @@
                         android:hint="Phone Number"
                         android:text="+6285256036050"
                         android:textSize="14sp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
                         android:inputType="phone" />
 
                 </com.google.android.material.textfield.TextInputLayout>

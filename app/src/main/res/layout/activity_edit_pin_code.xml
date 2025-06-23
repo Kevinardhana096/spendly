@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/background_primary"
     tools:context=".activity.EditPinCodeActivity">
 
     <!-- Header with back button and title -->
@@ -15,6 +15,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="16dp"
+        android:background="@color/card_background"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -28,7 +29,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
-            app:tint="@color/black" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"
@@ -37,7 +38,7 @@
             android:text="Edit PIN Code"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:gravity="center" />
 
         <!-- Empty view to balance the layout -->
@@ -74,7 +75,7 @@
                 android:layout_height="wrap_content"
                 android:text="Step 1 of 3"
                 android:textSize="12sp"
-                android:textColor="@color/text_gray"
+                android:textColor="@color/text_secondary"
                 android:layout_marginBottom="8dp"
                 android:visibility="gone" />
 
@@ -86,7 +87,7 @@
                 android:text="Edit a PIN Code"
                 android:textSize="24sp"
                 android:textStyle="bold"
-                android:textColor="@color/black"
+                android:textColor="@color/text_primary"
                 android:layout_marginBottom="8dp" />
 
             <!-- Subtitle -->
@@ -96,7 +97,7 @@
                 android:layout_height="wrap_content"
                 android:text="You'll need this PIN to access the app"
                 android:textSize="14sp"
-                android:textColor="@color/text_gray"
+                android:textColor="@color/text_secondary"
                 android:gravity="center" />
 
         </LinearLayout>
@@ -115,14 +116,14 @@
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:layout_marginEnd="12dp"
-                android:background="@drawable/pin_dot_filled" />
+                android:background="@drawable/pin_dot_empty" />
 
             <View
                 android:id="@+id/pin_dot_2"
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:layout_marginEnd="12dp"
-                android:background="@drawable/pin_dot_filled" />
+                android:background="@drawable/pin_dot_empty" />
 
             <View
                 android:id="@+id/pin_dot_3"
@@ -175,7 +176,7 @@
                     android:text="1"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
                     android:background="@drawable/pin_number_background"
                     android:clickable="true"
@@ -189,9 +190,9 @@
                     android:text="2"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
-                    android:background="@drawable/pin_number_filled_background"
+                    android:background="@drawable/pin_number_background"
                     android:clickable="true"
                     android:focusable="true" />
 
@@ -202,7 +203,7 @@
                     android:text="3"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
                     android:background="@drawable/pin_number_background"
                     android:clickable="true"
@@ -225,7 +226,7 @@
                     android:text="4"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
                     android:background="@drawable/pin_number_background"
                     android:clickable="true"
@@ -239,9 +240,9 @@
                     android:text="5"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
-                    android:background="@drawable/pin_number_filled_background"
+                    android:background="@drawable/pin_number_background"
                     android:clickable="true"
                     android:focusable="true" />
 
@@ -252,9 +253,9 @@
                     android:text="6"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
-                    android:background="@drawable/pin_number_filled_background"
+                    android:background="@drawable/pin_number_background"
                     android:clickable="true"
                     android:focusable="true" />
 
@@ -275,9 +276,9 @@
                     android:text="7"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
-                    android:background="@drawable/pin_number_filled_background"
+                    android:background="@drawable/pin_number_background"
                     android:clickable="true"
                     android:focusable="true" />
 
@@ -289,7 +290,7 @@
                     android:text="8"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
                     android:background="@drawable/pin_number_background"
                     android:clickable="true"
@@ -302,7 +303,7 @@
                     android:text="9"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
                     android:background="@drawable/pin_number_background"
                     android:clickable="true"
@@ -323,10 +324,10 @@
                     android:layout_marginEnd="20dp"
                     android:src="@drawable/ic_backspace"
                     android:padding="20dp"
-                    android:background="@drawable/pin_delete_background"
+                    android:background="@drawable/pin_action_background"
                     android:clickable="true"
                     android:focusable="true"
-                    app:tint="@color/white" />
+                    app:tint="@color/text_secondary" />
 
                 <TextView
                     android:id="@+id/btn_0"
@@ -336,9 +337,9 @@
                     android:text="0"
                     android:textSize="24sp"
                     android:textStyle="bold"
-                    android:textColor="@color/white"
+                    android:textColor="@color/text_primary"
                     android:gravity="center"
-                    android:background="@drawable/pin_number_filled_background"
+                    android:background="@drawable/pin_number_background"
                     android:clickable="true"
                     android:focusable="true" />
 
@@ -348,10 +349,10 @@
                     android:layout_height="64dp"
                     android:src="@drawable/ic_fingerprint"
                     android:padding="20dp"
-                    android:background="@drawable/pin_delete_background"
+                    android:background="@drawable/pin_action_background"
                     android:clickable="true"
                     android:focusable="true"
-                    app:tint="@color/white" />
+                    app:tint="@color/text_secondary" />
 
             </LinearLayout>
 

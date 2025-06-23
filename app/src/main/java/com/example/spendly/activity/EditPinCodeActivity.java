@@ -40,7 +40,7 @@ public class EditPinCodeActivity extends AppCompatActivity {
     private static final int STEP_CONFIRM_NEW_PIN = 3;
 
     private int currentStep = STEP_ENTER_OLD_PIN;
-    
+
     // Firebase
     private FirebaseAuth mAuth;
     private FirebaseFirestore mFirestore;
@@ -91,6 +91,9 @@ public class EditPinCodeActivity extends AppCompatActivity {
         numberButtons[7] = findViewById(R.id.btn_7);
         numberButtons[8] = findViewById(R.id.btn_8);
         numberButtons[9] = findViewById(R.id.btn_9);
+
+        // Reset all number buttons to normal state
+        resetNumberButtonStyles();
     }
 
     private void setupClickListeners() {
@@ -109,6 +112,18 @@ public class EditPinCodeActivity extends AppCompatActivity {
         });
 
         btnSaveChanges.setOnClickListener(v -> onSaveChangesClicked());
+    }
+
+    /**
+     * Reset all number buttons to use the standard background
+     */
+    private void resetNumberButtonStyles() {
+        for (TextView button : numberButtons) {
+            if (button != null) {
+                button.setBackgroundResource(R.drawable.pin_number_background);
+                // Text color will be handled by the drawable/theme
+            }
+        }
     }
 
     private void onNumberClicked(int number) {
@@ -233,7 +248,7 @@ public class EditPinCodeActivity extends AppCompatActivity {
                     .addOnSuccessListener(aVoid -> {
                         // Firebase update successful
                         Toast.makeText(this, "PIN updated successfully", Toast.LENGTH_SHORT).show();
-                        
+
                         // Create result intent
                         Intent resultIntent = new Intent();
                         resultIntent.putExtra("pin_updated_success", true);
@@ -243,7 +258,7 @@ public class EditPinCodeActivity extends AppCompatActivity {
                     .addOnFailureListener(e -> {
                         // Firebase update failed, but local storage succeeded
                         Toast.makeText(this, "PIN updated locally. Sync will happen later.", Toast.LENGTH_SHORT).show();
-                        
+
                         // Still return success since local storage worked
                         Intent resultIntent = new Intent();
                         resultIntent.putExtra("pin_updated_success", true);
@@ -253,7 +268,7 @@ public class EditPinCodeActivity extends AppCompatActivity {
         } else {
             // No user logged in, only local storage
             Toast.makeText(this, "PIN updated successfully", Toast.LENGTH_SHORT).show();
-            
+
             // Create result intent
             Intent resultIntent = new Intent();
             resultIntent.putExtra("pin_updated_success", true);
@@ -265,6 +280,7 @@ public class EditPinCodeActivity extends AppCompatActivity {
     private void updateUIForCurrentStep() {
         updatePinDots();
         updateSaveButton();
+        resetNumberButtonStyles(); // Reset button styles when changing steps
 
         switch (currentStep) {
             case STEP_ENTER_OLD_PIN:
@@ -308,7 +324,7 @@ public class EditPinCodeActivity extends AppCompatActivity {
     private String getSavedPin() {
         SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
         String localPin = prefs.getString("user_pin", "");
-        
+
         // If no local PIN found, try to sync from Firebase
         if (localPin.isEmpty() && currentUser != null) {
             // This is a fallback - normally PIN should be synced during login
@@ -316,35 +332,35 @@ public class EditPinCodeActivity extends AppCompatActivity {
             // Return local PIN after potential sync
             return prefs.getString("user_pin", "");
         }
-        
+
         return localPin;
     }
-    
+
     /**
      * Fallback method to sync PIN from Firebase if not found locally
      */
     private void syncPinFromFirebaseIfNeeded() {
         if (currentUser != null) {
             mFirestore.collection("users").document(currentUser.getUid())
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        String firebasePin = documentSnapshot.getString("userPin");
-                        Boolean pinCodeSet = documentSnapshot.getBoolean("pinCodeSet");
-                        
-                        if (firebasePin != null && !firebasePin.isEmpty() && pinCodeSet != null && pinCodeSet) {
-                            SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
-                            prefs.edit()
-                                .putString("user_pin", firebasePin)
-                                .putBoolean("pin_set", true)
-                                .putLong("pin_sync_date", System.currentTimeMillis())
-                                .apply();
+                    .get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String firebasePin = documentSnapshot.getString("userPin");
+                            Boolean pinCodeSet = documentSnapshot.getBoolean("pinCodeSet");
+
+                            if (firebasePin != null && !firebasePin.isEmpty() && pinCodeSet != null && pinCodeSet) {
+                                SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+                                prefs.edit()
+                                        .putString("user_pin", firebasePin)
+                                        .putBoolean("pin_set", true)
+                                        .putLong("pin_sync_date", System.currentTimeMillis())
+                                        .apply();
+                            }
                         }
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    // Failed to sync from Firebase, continue with empty PIN
-                });
+                    })
+                    .addOnFailureListener(e -> {
+                        // Failed to sync from Firebase, continue with empty PIN
+                    });
         }
     }
 
@@ -376,9 +392,11 @@ public class EditPinCodeActivity extends AppCompatActivity {
             switch (currentStep) {
                 case STEP_ENTER_NEW_PIN:
                     currentStep = STEP_ENTER_OLD_PIN;
+                    oldPin = "";
                     break;
                 case STEP_CONFIRM_NEW_PIN:
                     currentStep = STEP_ENTER_NEW_PIN;
+                    newPin = "";
                     break;
             }
             currentPin.setLength(0);
@@ -386,5 +404,13 @@ public class EditPinCodeActivity extends AppCompatActivity {
         } else {
             super.onBackPressed();
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reset UI when returning to activity
+        resetNumberButtonStyles();
+        updatePinDots();
     }
 }

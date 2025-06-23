@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/white"
+    android:background="@color/background_primary"
     android:gravity="center"
     android:padding="32dp"
     tools:context=".fragment.BudgetingEmptyStateFragment">
@@ -17,7 +17,7 @@
         android:text="Budgeting"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="@color/black"
+        android:textColor="@color/text_primary"
         android:layout_marginBottom="10dp" />
 
     <!-- Subtitle -->
@@ -26,7 +26,7 @@
         android:layout_height="wrap_content"
         android:text="Create your first monthly budget"
         android:textSize="16sp"
-        android:textColor="@color/text_gray"
+        android:textColor="@color/text_secondary"
         android:gravity="center"
         android:layout_marginBottom="64dp" />
 
@@ -60,7 +60,7 @@
             android:layout_height="wrap_content"
             android:text="Stay in control and"
             android:textSize="16sp"
-            android:textColor="@color/text_gray"
+            android:textColor="@color/text_secondary"
             android:gravity="center" />
 
         <TextView
@@ -68,7 +68,7 @@
             android:layout_height="wrap_content"
             android:text="build better money habits."
             android:textSize="16sp"
-            android:textColor="@color/text_gray"
+            android:textColor="@color/text_secondary"
             android:gravity="center" />
 
         <TextView
@@ -76,7 +76,7 @@
             android:layout_height="wrap_content"
             android:text="Let's set your spending limits!"
             android:textSize="16sp"
-            android:textColor="@color/text_gray"
+            android:textColor="@color/text_secondary"
             android:gravity="center" />
 
     </LinearLayout>

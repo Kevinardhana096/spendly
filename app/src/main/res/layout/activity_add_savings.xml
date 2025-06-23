@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_gray"
+    android:background="@color/background_primary"
     tools:context=".activity.AddSavingsActivity">
 
     <!-- Header with back button and title -->
@@ -15,7 +15,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:background="@color/white"
+        android:background="@color/card_background"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -29,7 +29,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
-            app:tint="@color/black" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"
@@ -38,7 +38,7 @@
             android:text="Add Savings"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:gravity="center" />
 
         <!-- Empty view to balance the layout -->
@@ -61,7 +61,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@color/white"
+            android:background="@color/card_background"
             android:padding="24dp"
             android:layout_marginTop="1dp">
 
@@ -78,7 +78,7 @@
                     android:text="Target Category"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="12dp" />
 
                 <LinearLayout
@@ -91,7 +91,8 @@
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
 
                     <ImageView
                         android:id="@+id/iv_category_icon"
@@ -108,13 +109,13 @@
                         android:layout_weight="1"
                         android:text="Food &amp; Beverages"
                         android:textSize="14sp"
-                        android:textColor="@color/black" />
+                        android:textColor="@color/text_primary" />
 
                     <ImageView
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@drawable/ic_arrow_right"
-                        app:tint="@color/text_gray" />
+                        app:tint="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -133,7 +134,7 @@
                     android:text="Target Name"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="12dp" />
 
                 <EditText
@@ -142,9 +143,9 @@
                     android:layout_height="48dp"
                     android:background="@drawable/input_field_background"
                     android:hint="Enter Target Name"
-                    android:textColorHint="@color/text_gray"
+                    android:textColorHint="@color/text_secondary"
                     android:textSize="14sp"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
                     android:maxLines="1"
@@ -165,7 +166,7 @@
                     android:text="Total Amount to Collect"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="12dp" />
 
                 <LinearLayout
@@ -182,7 +183,7 @@
                         android:layout_height="wrap_content"
                         android:text="Rp"
                         android:textSize="14sp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
                         android:layout_marginEnd="8dp" />
 
                     <EditText
@@ -192,9 +193,9 @@
                         android:layout_weight="1"
                         android:background="@null"
                         android:hint="0"
-                        android:textColorHint="@color/text_gray"
+                        android:textColorHint="@color/text_secondary"
                         android:textSize="14sp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
                         android:inputType="numberDecimal"
                         android:maxLines="1" />
 
@@ -215,7 +216,7 @@
                     android:text="Target Completion Date"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="12dp" />
 
                 <LinearLayout
@@ -228,7 +229,8 @@
                     android:paddingStart="16dp"
                     android:paddingEnd="16dp"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
 
                     <TextView
                         android:id="@+id/tv_completion_date"
@@ -237,13 +239,13 @@
                         android:layout_weight="1"
                         android:text="DD/MM/YYYY"
                         android:textSize="14sp"
-                        android:textColor="@color/text_gray" />
+                        android:textColor="@color/text_secondary" />
 
                     <ImageView
                         android:layout_width="16dp"
                         android:layout_height="16dp"
                         android:src="@drawable/ic_calendar_small"
-                        app:tint="@color/text_gray" />
+                        app:tint="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -262,7 +264,7 @@
                     android:text="Target Photo"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="12dp" />
 
                 <androidx.cardview.widget.CardView
@@ -273,7 +275,8 @@
                     app:cardElevation="2dp"
                     app:cardBackgroundColor="@color/input_background"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -300,14 +303,14 @@
                                 android:layout_height="48dp"
                                 android:src="@drawable/ic_camera"
                                 android:layout_marginBottom="8dp"
-                                app:tint="@color/text_gray" />
+                                app:tint="@color/text_secondary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Tap to add photo"
                                 android:textSize="14sp"
-                                android:textColor="@color/text_gray" />
+                                android:textColor="@color/text_secondary" />
 
                         </LinearLayout>
 

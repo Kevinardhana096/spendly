@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_gray"
+    android:background="@color/background_primary"
     tools:context=".activity.AddTransactionActivity">
 
     <!-- Header with back button and title -->
@@ -15,7 +15,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:background="@color/white"
+        android:background="@color/card_background"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -29,7 +29,7 @@
             android:focusable="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:padding="4dp"
-            app:tint="@color/black" />
+            app:tint="@color/text_primary" />
 
         <TextView
             android:layout_width="0dp"
@@ -38,7 +38,7 @@
             android:text="Add Transaction"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="@color/black"
+            android:textColor="@color/text_primary"
             android:gravity="center" />
 
         <!-- Empty view to balance the layout -->
@@ -61,7 +61,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="@color/white"
+            android:background="@color/card_background"
             android:padding="24dp"
             android:layout_marginTop="1dp">
 
@@ -111,7 +111,7 @@
                         android:layout_height="match_parent"
                         android:text="Income"
                         android:textSize="14sp"
-                        android:textColor="@color/text_gray"
+                        android:textColor="@color/text_secondary"
                         android:gravity="center"
                         android:background="@drawable/transaction_type_unselected_background" />
 
@@ -132,7 +132,7 @@
                     android:layout_height="wrap_content"
                     android:text="Rp"
                     android:textSize="24sp"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="4dp" />
 
                 <EditText
@@ -142,7 +142,8 @@
                     android:hint="0"
                     android:textSize="48sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_secondary"
                     android:background="@null"
                     android:gravity="center"
                     android:inputType="numberDecimal"
@@ -163,7 +164,7 @@
                     android:text="Date"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="16dp" />
 
                 <androidx.cardview.widget.CardView
@@ -172,8 +173,10 @@
                     android:layout_height="48dp"
                     app:cardCornerRadius="12dp"
                     app:cardElevation="2dp"
+                    app:cardBackgroundColor="@color/card_background"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -197,13 +200,13 @@
                             android:layout_weight="1"
                             android:text="20 June 2025"
                             android:textSize="14sp"
-                            android:textColor="@color/black" />
+                            android:textColor="@color/text_primary" />
 
                         <ImageView
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@drawable/ic_arrow_right"
-                            app:tint="@color/text_gray" />
+                            app:tint="@color/icon_tint" />
 
                     </LinearLayout>
 
@@ -225,7 +228,7 @@
                     android:text="Select Category"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="16dp" />
 
                 <!-- Categories Container (for dynamically added budget categories) -->
@@ -255,7 +258,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="24dp"
-        android:background="@color/white"
+        android:background="@color/card_background"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">

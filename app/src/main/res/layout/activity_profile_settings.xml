@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_gray"
+    android:background="@color/background_primary"
     tools:context=".activity.ProfileSettingsActivity">
 
     <ScrollView
@@ -24,7 +24,7 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:padding="16dp"
-                android:background="@color/white">
+                android:background="@color/card_background">
 
                 <ImageView
                     android:id="@+id/btn_back"
@@ -35,7 +35,7 @@
                     android:focusable="true"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:padding="4dp"
-                    app:tint="@color/black" />
+                    app:tint="@color/text_primary" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -44,7 +44,7 @@
                     android:text="Profile Settings"
                     android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:gravity="center" />
 
                 <!-- Empty view to balance the layout -->
@@ -59,7 +59,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/white"
+                android:background="@color/card_background"
                 android:padding="24dp"
                 android:layout_marginTop="1dp">
 
@@ -69,7 +69,7 @@
                     android:text="Your Profile"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/black"
+                    android:textColor="@color/text_primary"
                     android:layout_marginBottom="24dp" />
 
                 <!-- Profile Image -->
@@ -83,7 +83,8 @@
                         android:layout_width="120dp"
                         android:layout_height="120dp"
                         app:cardCornerRadius="60dp"
-                        app:cardElevation="4dp">
+                        app:cardElevation="4dp"
+                        app:cardBackgroundColor="@color/card_background">
 
                         <ImageView
                             android:id="@+id/img_profile"
@@ -103,7 +104,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@color/white"
+                android:background="@color/card_background"
                 android:padding="24dp"
                 android:layout_marginTop="16dp">
 
@@ -140,7 +141,7 @@
                         android:id="@+id/tv_nickname"
                         android:text="Ardhana"
                         android:textSize="14sp"
-                        android:textColor="@color/text_gray" />
+                        android:textColor="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -168,7 +169,7 @@
                         android:id="@+id/tv_email"
                         android:text="chndra.ardhana@gmail.com"
                         android:textSize="14sp"
-                        android:textColor="@color/text_gray" />
+                        android:textColor="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -196,7 +197,7 @@
                         android:id="@+id/tv_phone"
                         android:text="+6285256036050"
                         android:textSize="14sp"
-                        android:textColor="@color/text_gray" />
+                        android:textColor="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -219,7 +220,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:background="@color/white"
+                android:background="@color/card_background"
                 android:orientation="vertical"
                 android:padding="24dp">
 
@@ -241,6 +242,7 @@
                     android:background="@drawable/input_field_background"
                     android:clickable="true"
                     android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:padding="16dp">
@@ -250,14 +252,14 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Change Pin"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp" />
 
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_arrow_right"
-                        app:tint="@color/text_gray" />
+                        app:tint="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -269,6 +271,7 @@
                     android:background="@drawable/input_field_background"
                     android:clickable="true"
                     android:focusable="true"
+                    android:foreground="?attr/selectableItemBackground"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:padding="16dp">
@@ -278,19 +281,20 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Change Password"
-                        android:textColor="@color/black"
+                        android:textColor="@color/text_primary"
                         android:textSize="14sp" />
 
                     <ImageView
                         android:layout_width="20dp"
                         android:layout_height="20dp"
                         android:src="@drawable/ic_arrow_right"
-                        app:tint="@color/text_gray" />
+                        app:tint="@color/text_secondary" />
 
                 </LinearLayout>
 
             </LinearLayout>
 
+            <!-- Logout Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -303,7 +307,8 @@
                     android:text="Logout"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:backgroundTint="@color/red_light_background"
+                    android:textColor="@color/white"
+                    android:backgroundTint="@color/red_primary"
                     android:layout_marginBottom="8dp"/>
             </LinearLayout>
         </LinearLayout>
@@ -315,7 +320,7 @@
         android:id="@+id/progress_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#80000000"
+        android:background="@color/overlay_background"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
