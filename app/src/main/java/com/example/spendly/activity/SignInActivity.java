@@ -35,11 +35,12 @@ public class SignInActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_sign_in);
 
-        Log.d(TAG, "=== SignInActivity Created ===");
-
-        // Initialize Firebase Auth
+        Log.d(TAG, "=== SignInActivity Created ===");        // Initialize Firebase Auth
         mAuth = FirebaseAuth.getInstance();
         mFirestore = FirebaseFirestore.getInstance();
+        
+        // Configure Firestore settings to force online mode and prevent offline errors
+        configureFirestoreSettings();
 
         // Hide the action bar if it exists
         if (getSupportActionBar() != null) {
@@ -220,32 +221,51 @@ public class SignInActivity extends AppCompatActivity {
 
     /**
      * Verify user data exists in Firestore and create if missing
-     */
-    private void verifyAndEnsureUserDataExists(FirebaseUser firebaseUser, String email) {
+     */    private void verifyAndEnsureUserDataExists(FirebaseUser firebaseUser, String email) {
         String userId = firebaseUser.getUid();
         Log.d(TAG, "Verifying user data exists in Firestore for UID: " + userId);
         
-        mFirestore.collection("users")
-                .document(userId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        Log.d(TAG, "✅ User data found in Firestore");
-                        // User data exists, check PIN and redirect
-                        checkPinCodeAndRedirect(documentSnapshot);
-                    } else {
-                        Log.w(TAG, "⚠️ User data not found in Firestore, creating minimal user document");
-                        // User data doesn't exist, create minimal user document
-                        createMinimalUserDocument(firebaseUser, email);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "❌ Error checking user data in Firestore", e);
-                    // On error, try to create user document as fallback
-                    Toast.makeText(getApplicationContext(), "Error accessing user data, creating profile...", 
-                            Toast.LENGTH_SHORT).show();
-                    createMinimalUserDocument(firebaseUser, email);
-                });
+        // First, ensure Firestore network is enabled before attempting to access data
+        mFirestore.enableNetwork()
+            .addOnCompleteListener(networkTask -> {
+                Log.d(TAG, "Network enable completed before verifying user data: " + networkTask.isSuccessful());
+                
+                mFirestore.collection("users")
+                        .document(userId)
+                        .get()
+                        .addOnSuccessListener(documentSnapshot -> {
+                            if (documentSnapshot.exists()) {
+                                Log.d(TAG, "✅ User data found in Firestore");
+                                // User data exists, check PIN and redirect
+                                checkPinCodeAndRedirect(documentSnapshot);
+                            } else {
+                                Log.w(TAG, "⚠️ User data not found in Firestore, creating minimal user document");
+                                // User data doesn't exist, create minimal user document
+                                createMinimalUserDocument(firebaseUser, email);
+                            }
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "❌ Error checking user data in Firestore", e);
+                            
+                            // Enhanced error handling for offline errors
+                            if (e.getMessage() != null && e.getMessage().contains("client is offline")) {
+                                Log.e(TAG, "❌ Firestore client is offline - retrying...");
+                                Toast.makeText(getApplicationContext(), "Connection issue. Retrying...", 
+                                        Toast.LENGTH_SHORT).show();
+                                
+                                // Retry after a short delay
+                                new android.os.Handler().postDelayed(() -> {
+                                    Log.d(TAG, "🔄 Retrying user data verification after offline error...");
+                                    verifyAndEnsureUserDataExists(firebaseUser, email);
+                                }, 3000);
+                            } else {
+                                // On other errors, try to create user document as fallback
+                                Toast.makeText(getApplicationContext(), "Error accessing user data, creating profile...", 
+                                        Toast.LENGTH_SHORT).show();
+                                createMinimalUserDocument(firebaseUser, email);
+                            }
+                        });
+            });
     }
 
     /**
@@ -286,6 +306,9 @@ public class SignInActivity extends AppCompatActivity {
      */
     private void checkPinCodeAndRedirect(com.google.firebase.firestore.DocumentSnapshot documentSnapshot) {
         Log.d(TAG, "Checking PIN code status from DocumentSnapshot");
+        
+        // Sync PIN from Firebase to SharedPreferences
+        syncPinFromFirebase(documentSnapshot);
         
         if (documentSnapshot.contains("pinCodeSet") && 
             Boolean.TRUE.equals(documentSnapshot.getBoolean("pinCodeSet"))) {
@@ -392,7 +415,76 @@ public class SignInActivity extends AppCompatActivity {
                         Toast.makeText(getApplicationContext(), 
                                 getString(R.string.reset_email_error) + ": " + errorMessage,
                                 Toast.LENGTH_LONG).show();
-                    }
-                });
+                    }                });
+    }
+
+    /**
+     * Configure Firestore settings to force online mode and prevent offline errors
+     */
+    private void configureFirestoreSettings() {
+        try {
+            android.util.Log.d(TAG, "🔧 Configuring Firestore settings to force online mode...");
+            
+            // Configure Firestore settings BEFORE enabling network
+            com.google.firebase.firestore.FirebaseFirestoreSettings settings =
+                    new com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                            .setPersistenceEnabled(true)  // Enable offline persistence
+                            .setCacheSizeBytes(com.google.firebase.firestore.FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                            .build();
+            
+            mFirestore.setFirestoreSettings(settings);
+            android.util.Log.d(TAG, "✅ Firestore settings configured with persistence enabled");
+            
+            // Force enable network after settings configuration
+            android.util.Log.d(TAG, "🌐 Attempting to force enable Firestore network...");
+            mFirestore.enableNetwork()
+                    .addOnSuccessListener(aVoid -> {
+                        android.util.Log.d(TAG, "✅ Firestore network enabled successfully");
+                    })
+                    .addOnFailureListener(e -> {
+                        android.util.Log.w(TAG, "⚠️ Could not enable Firestore network (may be temporary)", e);
+                        // This is not critical - app can still work with persistence
+                    });
+            
+            // Add a delay and retry network enable
+            new android.os.Handler().postDelayed(() -> {
+                android.util.Log.d(TAG, "🔄 Retry: Attempting to enable Firestore network again...");
+                mFirestore.enableNetwork()
+                        .addOnSuccessListener(aVoid -> {
+                            android.util.Log.d(TAG, "✅ Second attempt: Firestore network enabled");
+                        })
+                        .addOnFailureListener(e -> {
+                            android.util.Log.w(TAG, "⚠️ Second attempt failed - will rely on offline handling", e);
+                        });
+            }, 2000); // 2 second delay
+            
+        } catch (Exception e) {
+            android.util.Log.e(TAG, "❌ Error configuring Firestore settings", e);
+        }
+    }
+
+    /**
+     * Sync PIN from Firebase to SharedPreferences for local access
+     */
+    private void syncPinFromFirebase(com.google.firebase.firestore.DocumentSnapshot documentSnapshot) {
+        String firebasePin = documentSnapshot.getString("userPin");
+        Boolean pinCodeSet = documentSnapshot.getBoolean("pinCodeSet");
+        
+        if (firebasePin != null && !firebasePin.isEmpty() && pinCodeSet != null && pinCodeSet) {
+            // Save Firebase PIN to SharedPreferences
+            android.content.SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+            String localPin = prefs.getString("user_pin", "");
+            
+            // Only update if different or if no local PIN exists
+            if (!firebasePin.equals(localPin)) {
+                prefs.edit()
+                    .putString("user_pin", firebasePin)
+                    .putBoolean("pin_set", true)
+                    .putLong("pin_sync_date", System.currentTimeMillis())
+                    .apply();
+                
+                Log.d(TAG, "PIN synced from Firebase to local storage");
+            }
+        }
     }
 }

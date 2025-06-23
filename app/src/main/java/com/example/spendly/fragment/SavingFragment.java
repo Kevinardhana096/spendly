@@ -253,17 +253,16 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == REQUEST_CODE_ADD_SAVINGS && resultCode == Activity.RESULT_OK && data != null) {
-            Log.d(TAG, "Received result from AddSavingsActivity");
-
-            // Extract data from result
+            Log.d(TAG, "Received result from AddSavingsActivity");            // Extract data from result
             String targetName = data.getStringExtra("target_name");
             String targetCategory = data.getStringExtra("target_category");
             double targetAmount = data.getDoubleExtra("target_amount", 0);
             long completionDate = data.getLongExtra("completion_date", 0);
             String photoUri = data.getStringExtra("photo_uri");
+            String photoBase64 = data.getStringExtra("photo_base64");
 
             // Create new SavingsItem and save to Firebase
-            saveSavingsToFirebase(targetName, targetCategory, targetAmount, completionDate, photoUri);
+            saveSavingsToFirebase(targetName, targetCategory, targetAmount, completionDate, photoUri, photoBase64);
 
             // Add a temporary item immediately for better UX
             SavingsItem newItem = new SavingsItem();
@@ -273,6 +272,7 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
             newItem.setCurrentAmount(0);
             newItem.setCompletionDate(completionDate);
             newItem.setPhotoUri(photoUri);
+            newItem.setPhotoBase64(photoBase64); // Set Base64 data
             newItem.setCreatedAt(CURRENT_TIMESTAMP);
 
             // Add to list and update adapter
@@ -290,10 +290,8 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
 
             Toast.makeText(getContext(), "Savings target added successfully!", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void saveSavingsToFirebase(String name, String category, double targetAmount,
-                                       long completionDate, String photoUri) {
+    }    private void saveSavingsToFirebase(String name, String category, double targetAmount,
+                                       long completionDate, String photoUri, String photoBase64) {
         if (currentUser == null) {
             Toast.makeText(getContext(), "You need to be logged in to save targets", Toast.LENGTH_SHORT).show();
             return;
@@ -309,6 +307,7 @@ public class SavingFragment extends Fragment implements SavingsAdapter.OnSavings
         savingData.put("currentAmount", 0);
         savingData.put("completionDate", completionDate);
         savingData.put("photoUri", photoUri);
+        savingData.put("photoBase64", photoBase64); // Store Base64 data
         savingData.put("createdAt", CURRENT_TIMESTAMP);
         savingData.put("userId", CURRENT_USER);
 

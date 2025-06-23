@@ -31,6 +31,8 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.spendly.R;
+import com.example.spendly.utils.ImageUtils;
+import com.example.spendly.utils.PermissionUtils;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -57,6 +59,7 @@ public class AddSavingsActivity extends AppCompatActivity {
     private int selectedCategoryIcon = R.drawable.ic_food;
     private int selectedCategoryColor = R.color.orange_primary;
     private Uri selectedPhotoUri;
+    private String selectedPhotoBase64; // Base64 encoded image data
 
     // Edit mode variables
     private boolean isEditMode = false;
@@ -162,7 +165,12 @@ public class AddSavingsActivity extends AppCompatActivity {
         }
         
         // Load existing photo if available
-        if (editSavingsItem.getPhotoUri() != null && !editSavingsItem.getPhotoUri().isEmpty()) {
+        if (editSavingsItem.getPhotoBase64() != null && !editSavingsItem.getPhotoBase64().isEmpty()) {
+            // Load from Base64
+            selectedPhotoBase64 = editSavingsItem.getPhotoBase64();
+            loadImageFromBase64(selectedPhotoBase64);
+        } else if (editSavingsItem.getPhotoUri() != null && !editSavingsItem.getPhotoUri().isEmpty()) {
+            // Fallback to URI (for backward compatibility)
             selectedPhotoUri = Uri.parse(editSavingsItem.getPhotoUri());
             loadImageFromUri(selectedPhotoUri);
         }
@@ -248,6 +256,24 @@ public class AddSavingsActivity extends AppCompatActivity {
         ivTargetPhoto.setVisibility(View.VISIBLE);
         photoPlaceholder.setVisibility(View.GONE);
         selectedPhotoUri = null; // Clear the URI since we can't use it
+        selectedPhotoBase64 = null; // Clear Base64 data too
+    }
+
+    private void loadImageFromBase64(String base64String) {
+        try {
+            Bitmap bitmap = ImageUtils.base64ToBitmap(base64String);
+            if (bitmap != null) {
+                ivTargetPhoto.setImageBitmap(bitmap);
+                ivTargetPhoto.setVisibility(View.VISIBLE);
+                photoPlaceholder.setVisibility(View.GONE);
+            } else {
+                showImagePlaceholder();
+                Toast.makeText(this, "Failed to load image from stored data", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            showImagePlaceholder();
+            Toast.makeText(this, "Failed to load image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void showCategorySelector() {
@@ -348,8 +374,8 @@ public class AddSavingsActivity extends AppCompatActivity {
     }
 
     private void openCamera() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_CODE);
+        if (!PermissionUtils.isCameraPermissionGranted(this)) {
+            PermissionUtils.requestCameraPermission(this);
         } else {
             Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             if (cameraIntent.resolveActivity(getPackageManager()) != null) {
@@ -359,17 +385,9 @@ public class AddSavingsActivity extends AppCompatActivity {
     }
 
     private void openGallery() {
-        // Check for storage permission (different for different Android versions)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_MEDIA_IMAGES}, STORAGE_PERMISSION_CODE);
-                return;
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, STORAGE_PERMISSION_CODE);
-                return;
-            }
+        if (!PermissionUtils.isStoragePermissionGranted(this)) {
+            PermissionUtils.requestStoragePermission(this);
+            return;
         }
 
         Intent galleryIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
@@ -391,18 +409,36 @@ public class AddSavingsActivity extends AppCompatActivity {
                 if (extras != null) {
                     Bitmap imageBitmap = (Bitmap) extras.get("data");
                     if (imageBitmap != null) {
-                        ivTargetPhoto.setImageBitmap(imageBitmap);
-                        ivTargetPhoto.setVisibility(View.VISIBLE);
-                        photoPlaceholder.setVisibility(View.GONE);
-                        // For camera images, we don't set selectedPhotoUri since it's a bitmap
-                        selectedPhotoUri = null;
-                        updateAddButton();
+                        // Convert bitmap to Base64
+                        selectedPhotoBase64 = ImageUtils.bitmapToBase64(imageBitmap);
+                        if (selectedPhotoBase64 != null) {
+                            ivTargetPhoto.setImageBitmap(imageBitmap);
+                            ivTargetPhoto.setVisibility(View.VISIBLE);
+                            photoPlaceholder.setVisibility(View.GONE);
+                            selectedPhotoUri = null; // Clear URI since we're using Base64
+                            updateAddButton();
+                        } else {
+                            Toast.makeText(this, "Failed to process camera image", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 }
             } else if (requestCode == GALLERY_REQUEST_CODE && data != null) {
                 selectedPhotoUri = data.getData();
                 if (selectedPhotoUri != null) {
-                    // Take persistent permission for the URI
+                    // Convert URI to Base64
+                    selectedPhotoBase64 = ImageUtils.uriToBase64(this, selectedPhotoUri);
+                    if (selectedPhotoBase64 != null) {
+                        // Load the image from Base64 to display
+                        loadImageFromBase64(selectedPhotoBase64);
+                        updateAddButton();
+                    } else {
+                        // Fallback to URI loading if Base64 conversion fails
+                        loadImageFromUri(selectedPhotoUri);
+                        updateAddButton();
+                        Toast.makeText(this, "Image converted to compatible format", Toast.LENGTH_SHORT).show();
+                    }
+                    
+                    // Take persistent permission for the URI (for fallback compatibility)
                     try {
                         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
                             getContentResolver().takePersistableUriPermission(selectedPhotoUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -411,9 +447,6 @@ public class AddSavingsActivity extends AppCompatActivity {
                         // Permission not available for this URI, continue anyway
                         android.util.Log.w("AddSavingsActivity", "Could not take persistent permission: " + e.getMessage());
                     }
-                    
-                    loadImageFromUri(selectedPhotoUri);
-                    updateAddButton();
                 }
             }
         }
@@ -500,8 +533,14 @@ public class AddSavingsActivity extends AppCompatActivity {
         updateData.put("category", selectedCategory);
         updateData.put("targetAmount", amount);
         updateData.put("completionDate", completionCalendar.getTimeInMillis());
-        if (selectedPhotoUri != null) {
+        
+        // Update photo data
+        if (selectedPhotoBase64 != null && !selectedPhotoBase64.isEmpty()) {
+            updateData.put("photoBase64", selectedPhotoBase64);
+            updateData.put("photoUri", null); // Clear old URI
+        } else if (selectedPhotoUri != null) {
             updateData.put("photoUri", selectedPhotoUri.toString());
+            // Keep existing photoBase64 if no new image was selected
         }
 
         // Update in Firestore
@@ -524,7 +563,7 @@ public class AddSavingsActivity extends AppCompatActivity {
     }
 
     private void createNewTarget(String targetName, double amount) {
-        // Create target data (original functionality)
+        // Create target data with Base64 image support
         SavingsTarget savingsTarget = new SavingsTarget(
                 targetName,
                 selectedCategory,
@@ -533,6 +572,11 @@ public class AddSavingsActivity extends AppCompatActivity {
                 selectedPhotoUri != null ? selectedPhotoUri.toString() : null,
                 System.currentTimeMillis()
         );
+        
+        // Set Base64 image data if available
+        if (selectedPhotoBase64 != null && !selectedPhotoBase64.isEmpty()) {
+            savingsTarget.setPhotoBase64(selectedPhotoBase64);
+        }
 
         // Prepare result intent with all necessary data
         Intent resultIntent = new Intent();
@@ -542,6 +586,7 @@ public class AddSavingsActivity extends AppCompatActivity {
         resultIntent.putExtra("completion_date", completionCalendar.getTimeInMillis());
         resultIntent.putExtra("completion_date_str", dateFormat.format(completionCalendar.getTime()));
         resultIntent.putExtra("photo_uri", selectedPhotoUri != null ? selectedPhotoUri.toString() : null);
+        resultIntent.putExtra("photo_base64", selectedPhotoBase64); // Add Base64 data
         resultIntent.putExtra("amount_formatted", formatNumber((long) amount));
         resultIntent.putExtra("created_at", System.currentTimeMillis());
 
@@ -561,6 +606,7 @@ public class AddSavingsActivity extends AppCompatActivity {
         public double targetAmount;
         public long completionDate;
         public String photoUri;
+        public String photoBase64; // Base64 encoded image data
         public long createdAt;
 
         public SavingsTarget(String name, String category, double targetAmount, long completionDate, String photoUri, long createdAt) {
@@ -570,6 +616,14 @@ public class AddSavingsActivity extends AppCompatActivity {
             this.completionDate = completionDate;
             this.photoUri = photoUri;
             this.createdAt = createdAt;
+        }
+        
+        public void setPhotoBase64(String photoBase64) {
+            this.photoBase64 = photoBase64;
+        }
+        
+        public String getPhotoBase64() {
+            return photoBase64;
         }
     }
 

@@ -14,6 +14,10 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.spendly.R;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.EmailAuthProvider;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class EditPasswordActivity extends AppCompatActivity {
     private ImageView btnBack;
@@ -23,11 +27,19 @@ public class EditPasswordActivity extends AppCompatActivity {
     private boolean isCurrentPasswordVisible = false;
     private boolean isNewPasswordVisible = false;
     private boolean isConfirmPasswordVisible = false;
+    
+    // Firebase
+    private FirebaseAuth mAuth;
+    private FirebaseUser currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_password);
+
+        // Initialize Firebase
+        mAuth = FirebaseAuth.getInstance();
+        currentUser = mAuth.getCurrentUser();
 
         initViews();
         setupClickListeners();
@@ -89,10 +101,34 @@ public class EditPasswordActivity extends AppCompatActivity {
         String confirmPassword = etConfirmPassword.getText().toString().trim();
 
         if (validatePasswords(currentPassword, newPassword, confirmPassword)) {
-            // Save new password to database/API
-            // For now, just show success message
-            Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show();
-            finish();
+            if (currentUser != null && currentUser.getEmail() != null) {
+                // Re-authenticate user with current password
+                AuthCredential credential = EmailAuthProvider.getCredential(currentUser.getEmail(), currentPassword);
+                
+                currentUser.reauthenticate(credential)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            // Update password
+                            currentUser.updatePassword(newPassword)
+                                .addOnCompleteListener(updateTask -> {
+                                    if (updateTask.isSuccessful()) {
+                                        Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show();
+                                        finish();
+                                    } else {
+                                        String errorMessage = updateTask.getException() != null ? 
+                                                updateTask.getException().getMessage() : "Failed to update password";
+                                        Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                        } else {
+                            etCurrentPassword.setError("Current password is incorrect");
+                            etCurrentPassword.requestFocus();
+                            Toast.makeText(this, "Current password is incorrect", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+            } else {
+                Toast.makeText(this, "User not authenticated", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 

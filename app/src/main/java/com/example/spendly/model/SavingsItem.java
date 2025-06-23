@@ -8,8 +8,8 @@ public class SavingsItem implements Serializable {
     private String category;
     private double targetAmount;
     private double currentAmount;
-    private long completionDate;
-    private String photoUri;
+    private long completionDate;    private String photoUri; // Can store either URI or Base64 string
+    private String photoBase64; // Base64 encoded image data
     private long createdAt;
 
     // Empty constructor for Firestore
@@ -45,10 +45,11 @@ public class SavingsItem implements Serializable {
     public void setCurrentAmount(double currentAmount) { this.currentAmount = currentAmount; }
 
     public long getCompletionDate() { return completionDate; }
-    public void setCompletionDate(long completionDate) { this.completionDate = completionDate; }
-
-    public String getPhotoUri() { return photoUri; }
+    public void setCompletionDate(long completionDate) { this.completionDate = completionDate; }    public String getPhotoUri() { return photoUri; }
     public void setPhotoUri(String photoUri) { this.photoUri = photoUri; }
+
+    public String getPhotoBase64() { return photoBase64; }
+    public void setPhotoBase64(String photoBase64) { this.photoBase64 = photoBase64; }
 
     public long getCreatedAt() { return createdAt; }
     public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }

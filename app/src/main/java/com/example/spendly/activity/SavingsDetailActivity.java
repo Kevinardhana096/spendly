@@ -19,6 +19,7 @@ import com.example.spendly.R;
 import com.example.spendly.adapter.SavingHistoryAdapter;
 import com.example.spendly.model.SavingHistoryItem;
 import com.example.spendly.model.SavingsItem;
+import com.example.spendly.utils.ImageUtils;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -419,32 +420,77 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         loadSavingImage();
 
         Log.d(TAG, "Savings data displayed successfully");
-    }
-
-    private void loadSavingImage() {
+    }    private void loadSavingImage() {
         if (carImage == null) {
             Log.e(TAG, "carImage view is null");
             return;
         }
 
+        // First try to load from Base64 (preferred method)
+        if (savingsItem.getPhotoBase64() != null && !savingsItem.getPhotoBase64().isEmpty()) {
+            Log.d(TAG, "Loading image from Base64 data");
+            try {
+                android.graphics.Bitmap bitmap = ImageUtils.base64ToBitmap(savingsItem.getPhotoBase64());
+                if (bitmap != null) {
+                    carImage.setImageBitmap(bitmap);
+                    Log.d(TAG, "Base64 image loaded successfully");
+                    return;
+                } else {
+                    Log.w(TAG, "Failed to decode Base64 image data");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error loading Base64 image", e);
+            }
+        }
+
+        // Fallback to URI loading if Base64 is not available or failed
         if (savingsItem.getPhotoUri() != null && !savingsItem.getPhotoUri().isEmpty()) {
             Log.d(TAG, "Loading image from URI: " + savingsItem.getPhotoUri());
-
             try {
                 Glide.with(this)
                         .load(savingsItem.getPhotoUri())
                         .placeholder(R.drawable.placeholder_green)
                         .error(R.drawable.placeholder_green)
                         .centerCrop()
+                        .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                            @Override
+                            public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model, 
+                                    com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                    boolean isFirstResource) {
+                                Log.w(TAG, "Failed to load savings URI image: " + 
+                                    (e != null ? e.getMessage() : "Unknown error"));
+                                
+                                // Check if it's a SecurityException
+                                if (e != null && e.getCauses() != null) {
+                                    for (Throwable cause : e.getCauses()) {
+                                        if (cause instanceof SecurityException) {
+                                            Log.w(TAG, "SecurityException detected - URI permission lost for savings image");
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // Let Glide handle the error by showing error drawable
+                                return false;
+                            }
+
+                            @Override
+                            public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, 
+                                    com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                    com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                                Log.d(TAG, "Savings URI image loaded successfully");
+                                return false;
+                            }
+                        })
                         .into(carImage);
 
-                Log.d(TAG, "Image loaded successfully with Glide");
+                Log.d(TAG, "URI image loading initiated with Glide");
             } catch (Exception e) {
-                Log.e(TAG, "Error loading image with Glide", e);
+                Log.e(TAG, "Error loading URI image with Glide", e);
                 carImage.setImageResource(R.drawable.placeholder_green);
             }
         } else {
-            Log.d(TAG, "No photo URI provided, using placeholder");
+            Log.d(TAG, "No image data provided, using placeholder");
             carImage.setImageResource(R.drawable.placeholder_green);
         }
     }
@@ -600,28 +646,19 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
         Map<String, Object> historyData = new HashMap<>();
         historyData.put("amount", amount);
         historyData.put("date", CURRENT_TIMESTAMP);
-        historyData.put("formattedAmount", formatCurrency(amount));
-        historyData.put("type", "deposit");
+        historyData.put("formattedAmount", formatCurrency(amount));        historyData.put("type", "deposit");
         historyData.put("note", "Manual deposit by " + CURRENT_USER + " at " + CURRENT_DATE_TIME);
         historyData.put("userId", CURRENT_USER);
-        historyData.put("savingsId", savingsId);
-
-        // Create transaction for transaction history (savings as expense)
-        Map<String, Object> transactionData = new HashMap<>();
-        transactionData.put("amount", amount);
-        transactionData.put("category", "Savings");
-        transactionData.put("type", "expense"); // Savings is an expense from available balance
-        transactionData.put("description", "Money transferred to savings: " + savingsItem.getName());
-        transactionData.put("date", CURRENT_TIMESTAMP);
-        transactionData.put("createdAt", CURRENT_TIMESTAMP);
-        transactionData.put("userId", currentUser.getUid());
-        transactionData.put("formattedAmount", formatCurrency(amount));
+        historyData.put("savingsId", savingsId);        // Note: Transaction history removed - savings deposits won't appear in History Fragment
+        // Only savings-specific history will be maintained
+        Log.d(TAG, "📝 NOTE: Add money to savings will NOT create transaction history");
+        Log.d(TAG, "📝 This operation only affects: savings amount, savings history, and user balance");
 
         // Update savings document
         Map<String, Object> updateData = new HashMap<>();
         updateData.put("currentAmount", newCurrentAmount);
 
-        Log.d(TAG, "Saving transaction to Firestore...");
+        Log.d(TAG, "Saving savings history to Firestore (no transaction history)...");
 
         // First, check user's current balance
         db.collection("users").document(currentUser.getUid())
@@ -634,11 +671,11 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
                         Log.d(TAG, "Current user balance: Rp" + formatNumber(currentBalance));
 
                         if (currentBalance >= amount) {
-                            // User has sufficient balance, proceed with transactions
+                            // User has sufficient balance, proceed with operations
                             double newBalance = currentBalance - amount;
                             Log.d(TAG, "New balance will be: Rp" + formatNumber(newBalance));
 
-                            // Start transaction: Add to savings history
+                            // Start operation: Add to savings history only
                             db.collection("users")
                                     .document(currentUser.getUid())
                                     .collection("savings")
@@ -657,52 +694,36 @@ public class SavingsDetailActivity extends AppCompatActivity implements SavingHi
                                                 .addOnSuccessListener(aVoid -> {
                                                     Log.d(TAG, "Savings amount updated successfully");
 
-                                                    // Add transaction to transaction history
+                                                    // Update user balance directly (no transaction history)
                                                     db.collection("users")
                                                             .document(currentUser.getUid())
-                                                            .collection("transactions")
-                                                            .add(transactionData)
-                                                            .addOnSuccessListener(transactionRef -> {
-                                                                Log.d(TAG, "Transaction history added successfully");
+                                                            .update("currentBalance", newBalance)
+                                                            .addOnSuccessListener(balanceUpdate -> {
+                                                                Log.d(TAG, "✅ SAVINGS OPERATION COMPLETED SUCCESSFULLY");
+                                                                Log.d(TAG, "- Savings updated: " + formatCurrency(newCurrentAmount));                                                                Log.d(TAG, "- Balance reduced: " + formatCurrency(newBalance));
+                                                                Log.d(TAG, "- No transaction history recorded (savings only)");
+                                                                Log.d(TAG, "- Progress: " + String.format("%.1f%%", newProgress));
 
-                                                                // Update user balance
-                                                                db.collection("users")
-                                                                        .document(currentUser.getUid())
-                                                                        .update("currentBalance", newBalance)
-                                                                        .addOnSuccessListener(balanceUpdate -> {
-                                                                            Log.d(TAG, "✅ ALL OPERATIONS COMPLETED SUCCESSFULLY");
-                                                                            Log.d(TAG, "- Savings updated: " + formatCurrency(newCurrentAmount));
-                                                                            Log.d(TAG, "- Balance reduced: " + formatCurrency(newBalance));
-                                                                            Log.d(TAG, "- Transaction recorded");
-                                                                            Log.d(TAG, "- Progress: " + String.format("%.1f%%", newProgress));
+                                                                // Update local data
+                                                                savingsItem.setCurrentAmount(newCurrentAmount);
 
-                                                                            // Update local data
-                                                                            savingsItem.setCurrentAmount(newCurrentAmount);
+                                                                // Refresh UI
+                                                                displaySavingsData();
+                                                                loadSavingHistory();                                                                String successMessage = "Money added to savings successfully!\n" +
+                                                                        "Added: " + formatCurrency(amount) + "\n" +
+                                                                        "New savings: " + formatCurrency(newCurrentAmount) + "\n" +
+                                                                        "Progress: " + String.format("%.1f%%", newProgress) + "\n" +
+                                                                        "Available balance: " + formatCurrency(newBalance) + "\n" +
+                                                                        "\nNote: This transaction won't appear in History tab";
 
-                                                                            // Refresh UI
-                                                                            displaySavingsData();
-                                                                            loadSavingHistory();
+                                                                Toast.makeText(this, successMessage, Toast.LENGTH_LONG).show();
 
-                                                                            String successMessage = "Money added successfully!\n" +
-                                                                                    "Added: " + formatCurrency(amount) + "\n" +
-                                                                                    "New savings: " + formatCurrency(newCurrentAmount) + "\n" +
-                                                                                    "Progress: " + String.format("%.1f%%", newProgress) + "\n" +
-                                                                                    "Available balance: " + formatCurrency(newBalance);
-
-                                                                            Toast.makeText(this, successMessage, Toast.LENGTH_LONG).show();
-
-                                                                            // Set result to indicate changes were made
-                                                                            setResult(RESULT_OK);
-                                                                        })
-                                                                        .addOnFailureListener(e -> {
-                                                                            Log.e(TAG, "❌ Error updating user balance", e);
-                                                                            Toast.makeText(this, "Failed to update balance: " + e.getMessage(),
-                                                                                    Toast.LENGTH_SHORT).show();
-                                                                        });
+                                                                // Set result to indicate changes were made
+                                                                setResult(RESULT_OK);
                                                             })
                                                             .addOnFailureListener(e -> {
-                                                                Log.e(TAG, "❌ Error adding transaction history", e);
-                                                                Toast.makeText(this, "Failed to record transaction: " + e.getMessage(),
+                                                                Log.e(TAG, "❌ Error updating user balance", e);
+                                                                Toast.makeText(this, "Failed to update balance: " + e.getMessage(),
                                                                         Toast.LENGTH_SHORT).show();
                                                             });
                                                 })

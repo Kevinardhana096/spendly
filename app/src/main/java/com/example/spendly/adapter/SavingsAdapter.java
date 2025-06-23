@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.example.spendly.R;
 import com.example.spendly.model.SavingsItem;
+import com.example.spendly.utils.ImageUtils;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -29,7 +30,7 @@ public class SavingsAdapter extends RecyclerView.Adapter<SavingsAdapter.SavingsV
 
     // Current context - Updated to 2025-06-21 19:50:42 UTC
     private static final String CURRENT_DATE_TIME = "2025-06-21 19:50:42";
-    private static final String CURRENT_USER = "nowriafisda";
+    private static final String CURRENT_USER = "Kevin Ardhana";
     private static final long CURRENT_TIMESTAMP = 1719346242000L; // 2025-06-21 19:50:42 UTC
 
     private Context context;
@@ -240,29 +241,74 @@ public class SavingsAdapter extends RecyclerView.Adapter<SavingsAdapter.SavingsV
                     tvDaysRemaining.setText("No target date");
                 }
             }
-        }
-
-        /**
-         * Load savings image
+        }        /**
+         * Load savings image from Base64 or URI with fallback
          */
         private void loadSavingsImage(SavingsItem item) {
             if (imgSavings != null) {
+                // First try to load from Base64 (preferred method)
+                if (item.getPhotoBase64() != null && !item.getPhotoBase64().isEmpty()) {
+                    Log.d(TAG, "Loading image from Base64 for " + item.getName());
+                    try {
+                        android.graphics.Bitmap bitmap = ImageUtils.base64ToBitmap(item.getPhotoBase64());
+                        if (bitmap != null) {
+                            imgSavings.setImageBitmap(bitmap);
+                            Log.d(TAG, "Base64 image loaded successfully for " + item.getName());
+                            return;
+                        } else {
+                            Log.w(TAG, "Failed to decode Base64 image for " + item.getName());
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error loading Base64 image for " + item.getName(), e);
+                    }
+                }
+                
+                // Fallback to URI loading if Base64 is not available or failed
                 if (item.getPhotoUri() != null && !item.getPhotoUri().isEmpty()) {
-                    Log.d(TAG, "Loading image for " + item.getName() + ": " + item.getPhotoUri());
-
+                    Log.d(TAG, "Loading image from URI for " + item.getName() + ": " + item.getPhotoUri());
                     try {
                         Glide.with(context)
                                 .load(item.getPhotoUri())
                                 .placeholder(R.drawable.placeholder_green)
                                 .error(R.drawable.placeholder_green)
                                 .centerCrop()
+                                .listener(new com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable>() {
+                                    @Override
+                                    public boolean onLoadFailed(com.bumptech.glide.load.engine.GlideException e, Object model, 
+                                            com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                            boolean isFirstResource) {
+                                        Log.w(TAG, "Failed to load URI image for " + item.getName() + ": " + 
+                                            (e != null ? e.getMessage() : "Unknown error"));
+                                        
+                                        // Check if it's a SecurityException
+                                        if (e != null && e.getCauses() != null) {
+                                            for (Throwable cause : e.getCauses()) {
+                                                if (cause instanceof SecurityException) {
+                                                    Log.w(TAG, "SecurityException detected - URI permission lost for: " + item.getPhotoUri());
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        
+                                        // Let Glide handle the error by showing error drawable
+                                        return false;
+                                    }
+
+                                    @Override
+                                    public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, 
+                                            com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable> target, 
+                                            com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                                        Log.d(TAG, "URI image loaded successfully for " + item.getName());
+                                        return false;
+                                    }
+                                })
                                 .into(imgSavings);
                     } catch (Exception e) {
-                        Log.e(TAG, "Error loading image with Glide", e);
+                        Log.e(TAG, "Error loading URI image with Glide", e);
                         imgSavings.setImageResource(R.drawable.placeholder_green);
                     }
                 } else {
-                    Log.d(TAG, "No image URI for " + item.getName() + ", using placeholder");
+                    Log.d(TAG, "No image data for " + item.getName() + ", using placeholder");
                     imgSavings.setImageResource(R.drawable.placeholder_green);
                 }
             }

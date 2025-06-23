@@ -13,19 +13,17 @@ public class SavingsEntity {
     private String userId;
     private String name;
     private String category;
-    private double targetAmount;
-    private double currentAmount;
+    private double targetAmount;    private double currentAmount;
     private long completionDate;
     private String photoUri;
+    private String photoBase64; // Base64 encoded image data
     private long createdAt;
     private long updatedAt;
 
     // Constructors
-    public SavingsEntity() {}
-
-    public SavingsEntity(@NonNull String id, String userId, String name, String category,
+    public SavingsEntity() {}    public SavingsEntity(@NonNull String id, String userId, String name, String category,
                         double targetAmount, double currentAmount, long completionDate,
-                        String photoUri, long createdAt, long updatedAt) {
+                        String photoUri, String photoBase64, long createdAt, long updatedAt) {
         this.id = id;
         this.userId = userId;
         this.name = name;
@@ -34,6 +32,7 @@ public class SavingsEntity {
         this.currentAmount = currentAmount;
         this.completionDate = completionDate;
         this.photoUri = photoUri;
+        this.photoBase64 = photoBase64;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -59,10 +58,11 @@ public class SavingsEntity {
     public void setCurrentAmount(double currentAmount) { this.currentAmount = currentAmount; }
 
     public long getCompletionDate() { return completionDate; }
-    public void setCompletionDate(long completionDate) { this.completionDate = completionDate; }
-
-    public String getPhotoUri() { return photoUri; }
+    public void setCompletionDate(long completionDate) { this.completionDate = completionDate; }    public String getPhotoUri() { return photoUri; }
     public void setPhotoUri(String photoUri) { this.photoUri = photoUri; }
+
+    public String getPhotoBase64() { return photoBase64; }
+    public void setPhotoBase64(String photoBase64) { this.photoBase64 = photoBase64; }
 
     public long getCreatedAt() { return createdAt; }
     public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }

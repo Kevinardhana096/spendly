@@ -14,7 +14,7 @@ import com.example.spendly.database.entity.UserEntity;
 
 @Database(
     entities = {UserEntity.class, TransactionEntity.class, SavingsEntity.class},
-    version = 1,
+    version = 2, // Updated for photoBase64 field
     exportSchema = false
 )
 public abstract class SpendlyDatabase extends RoomDatabase {

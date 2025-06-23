@@ -13,8 +13,13 @@ import android.widget.Toast;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.example.spendly.R;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class EditPinCodeActivity extends AppCompatActivity {
 
@@ -35,11 +40,21 @@ public class EditPinCodeActivity extends AppCompatActivity {
     private static final int STEP_CONFIRM_NEW_PIN = 3;
 
     private int currentStep = STEP_ENTER_OLD_PIN;
+    
+    // Firebase
+    private FirebaseAuth mAuth;
+    private FirebaseFirestore mFirestore;
+    private FirebaseUser currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_pin_code);
+
+        // Initialize Firebase
+        mAuth = FirebaseAuth.getInstance();
+        mFirestore = FirebaseFirestore.getInstance();
+        currentUser = mAuth.getCurrentUser();
 
         initViews();
         setupClickListeners();
@@ -194,19 +209,57 @@ public class EditPinCodeActivity extends AppCompatActivity {
     private void saveNewPin() {
         String hashedPin = hashPin(newPin);
 
+        // Show progress
+        btnSaveChanges.setEnabled(false);
+        btnSaveChanges.setText("Updating PIN...");
+
+        // Save to SharedPreferences for local access
         SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
         prefs.edit()
                 .putString("user_pin", hashedPin)
                 .putLong("pin_updated_date", System.currentTimeMillis())
                 .apply();
 
-        // Create result intent
-        Intent resultIntent = new Intent();
-        resultIntent.putExtra("pin_updated_success", true);
-        setResult(RESULT_OK, resultIntent);
+        // Save to Firebase Firestore
+        if (currentUser != null) {
+            Map<String, Object> pinData = new HashMap<>();
+            pinData.put("userPin", hashedPin);
+            pinData.put("pinCodeSet", true);
+            pinData.put("pinUpdatedDate", System.currentTimeMillis());
 
-        Toast.makeText(this, "PIN updated successfully", Toast.LENGTH_SHORT).show();
-        finish();
+            mFirestore.collection("users")
+                    .document(currentUser.getUid())
+                    .update(pinData)
+                    .addOnSuccessListener(aVoid -> {
+                        // Firebase update successful
+                        Toast.makeText(this, "PIN updated successfully", Toast.LENGTH_SHORT).show();
+                        
+                        // Create result intent
+                        Intent resultIntent = new Intent();
+                        resultIntent.putExtra("pin_updated_success", true);
+                        setResult(RESULT_OK, resultIntent);
+                        finish();
+                    })
+                    .addOnFailureListener(e -> {
+                        // Firebase update failed, but local storage succeeded
+                        Toast.makeText(this, "PIN updated locally. Sync will happen later.", Toast.LENGTH_SHORT).show();
+                        
+                        // Still return success since local storage worked
+                        Intent resultIntent = new Intent();
+                        resultIntent.putExtra("pin_updated_success", true);
+                        setResult(RESULT_OK, resultIntent);
+                        finish();
+                    });
+        } else {
+            // No user logged in, only local storage
+            Toast.makeText(this, "PIN updated successfully", Toast.LENGTH_SHORT).show();
+            
+            // Create result intent
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra("pin_updated_success", true);
+            setResult(RESULT_OK, resultIntent);
+            finish();
+        }
     }
 
     private void updateUIForCurrentStep() {
@@ -254,7 +307,45 @@ public class EditPinCodeActivity extends AppCompatActivity {
 
     private String getSavedPin() {
         SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
-        return prefs.getString("user_pin", "");
+        String localPin = prefs.getString("user_pin", "");
+        
+        // If no local PIN found, try to sync from Firebase
+        if (localPin.isEmpty() && currentUser != null) {
+            // This is a fallback - normally PIN should be synced during login
+            syncPinFromFirebaseIfNeeded();
+            // Return local PIN after potential sync
+            return prefs.getString("user_pin", "");
+        }
+        
+        return localPin;
+    }
+    
+    /**
+     * Fallback method to sync PIN from Firebase if not found locally
+     */
+    private void syncPinFromFirebaseIfNeeded() {
+        if (currentUser != null) {
+            mFirestore.collection("users").document(currentUser.getUid())
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String firebasePin = documentSnapshot.getString("userPin");
+                        Boolean pinCodeSet = documentSnapshot.getBoolean("pinCodeSet");
+                        
+                        if (firebasePin != null && !firebasePin.isEmpty() && pinCodeSet != null && pinCodeSet) {
+                            SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+                            prefs.edit()
+                                .putString("user_pin", firebasePin)
+                                .putBoolean("pin_set", true)
+                                .putLong("pin_sync_date", System.currentTimeMillis())
+                                .apply();
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    // Failed to sync from Firebase, continue with empty PIN
+                });
+        }
     }
 
     private String hashPin(String pin) {

@@ -86,16 +86,27 @@ public class RealtimeSavingsRepository {
                         
                         List<SavingsItem> savingsList = new ArrayList<>();
                         List<SavingsEntity> entities = new ArrayList<>();
-                        
-                        for (DocumentSnapshot document : querySnapshot.getDocuments()) {
+                          for (DocumentSnapshot document : querySnapshot.getDocuments()) {
                             SavingsItem item = document.toObject(SavingsItem.class);
                             if (item != null) {
                                 item.setId(document.getId());
+                                
+                                // Manually set photoBase64 if it exists in document but not mapped
+                                if (item.getPhotoBase64() == null && document.contains("photoBase64")) {
+                                    String photoBase64 = document.getString("photoBase64");
+                                    if (photoBase64 != null && !photoBase64.isEmpty()) {
+                                        item.setPhotoBase64(photoBase64);
+                                        Log.d(TAG, "✅ Loaded photoBase64 for item: " + item.getName());
+                                    }
+                                }
+                                
                                 savingsList.add(item);
                                 
                                 // Convert to entity for local storage
                                 SavingsEntity entity = convertToEntity(item, userId);
                                 entities.add(entity);
+                            } else {
+                                Log.w(TAG, "⚠️ Failed to convert document to SavingsItem: " + document.getId());
                             }
                         }
                         
@@ -281,9 +292,7 @@ public class RealtimeSavingsRepository {
             savingsListener = null;
         }
         Log.d(TAG, "RealtimeSavingsRepository cleaned up");
-    }
-
-    // Helper methods for conversion between entities and models
+    }    // Helper methods for conversion between entities and models
     private SavingsEntity convertToEntity(SavingsItem item, String userId) {
         return new SavingsEntity(
                 item.getId(),
@@ -294,6 +303,7 @@ public class RealtimeSavingsRepository {
                 item.getCurrentAmount(),
                 item.getCompletionDate(),
                 item.getPhotoUri(),
+                item.getPhotoBase64(), // Add Base64 support
                 item.getCreatedAt(),
                 System.currentTimeMillis() // updatedAt
         );
@@ -308,6 +318,7 @@ public class RealtimeSavingsRepository {
         item.setCurrentAmount(entity.getCurrentAmount());
         item.setCompletionDate(entity.getCompletionDate());
         item.setPhotoUri(entity.getPhotoUri());
+        item.setPhotoBase64(entity.getPhotoBase64()); // Add Base64 support
         item.setCreatedAt(entity.getCreatedAt());
         return item;
     }
